@@ -1,17 +1,15 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import Container from "@mui/material/Container";
-
 import Header from "./components/Header";
 import NavigationDrawer from "./components/NavigationDrawer";
-
 import ProdutoForm from "./components/ProdutoForm";
 import ProdutoList from "./components/ProdutoList";
 import FornecedorPage from "./pages/FornecedorPage";
 import CategoriaPage from "./pages/CategoriaPage";
+import MovimentacoesPage from "./pages/MovimentacoesPage";
 
 const drawerWidth = 240;
 
@@ -31,6 +29,7 @@ export default function App() {
           component="nav"
           sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
         >
+          {/* Drawer para mobile e desktop */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -82,6 +81,7 @@ export default function App() {
               />
               <Route path="/fornecedores" element={<FornecedorPage />} />
               <Route path="/categorias" element={<CategoriaPage />} />
+              <Route path="/movimentacoes" element={<MovimentacoesPage />} />
               <Route
                 path="/"
                 element={<ProdutoForm onProdutoAdicionado={atualizar} />}
