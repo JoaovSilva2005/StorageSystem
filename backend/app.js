@@ -18,8 +18,6 @@ const dbConfig = {
 
 const pool = mysql.createPool(dbConfig);
 
-// ======================== ROTAS ========================
-
 // ======================== PRODUTOS ========================
 
 // Listar produtos com categoria e fornecedor
@@ -102,6 +100,100 @@ app.delete("/produtos/:id", async (req, res) => {
   try {
     await pool.execute("DELETE FROM produto WHERE id = ?", [id]);
     res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ======================== MOVIMENTAÇÕES DE ESTOQUE ========================
+
+// Função auxiliar para registrar movimentação (entrada ou saída)
+async function registraMovimento(produtoId, tipo, quantidade, observacao) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const sinal = tipo === "entrada" ? 1 : -1;
+
+    // Atualiza estoque
+    const [rows] = await conn.query(
+      "SELECT quantidade FROM produto WHERE id = ?",
+      [produtoId]
+    );
+    if (rows.length === 0) {
+      throw new Error("Produto não encontrado.");
+    }
+
+    const quantidadeAtual = rows[0].quantidade;
+    if (tipo === "saida" && quantidade > quantidadeAtual) {
+      throw new Error("Estoque insuficiente para a saída.");
+    }
+
+    await conn.execute(
+      `UPDATE produto SET quantidade = quantidade + ? WHERE id = ?`,
+      [sinal * quantidade, produtoId]
+    );
+
+    await conn.execute(
+      `INSERT INTO movimentacao_estoque (produto_id, tipo, quantidade, observacao)
+       VALUES (?, ?, ?, ?)`,
+      [produtoId, tipo, quantidade, observacao || null]
+    );
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+// Registrar entrada de produto (rota usada no frontend)
+app.post("/produtos/:id/entrada", async (req, res) => {
+  const { id } = req.params;
+  const { quantidade, observacao } = req.body;
+
+  if (!quantidade || quantidade <= 0) {
+    return res.status(400).json({ error: "Quantidade inválida." });
+  }
+
+  try {
+    await registraMovimento(id, "entrada", quantidade, observacao);
+    res.status(201).json({ message: "Entrada registrada com sucesso." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Registrar saída de produto (rota usada no frontend)
+app.post("/produtos/:id/saida", async (req, res) => {
+  const { id } = req.params;
+  const { quantidade, observacao } = req.body;
+
+  if (!quantidade || quantidade <= 0) {
+    return res.status(400).json({ error: "Quantidade inválida." });
+  }
+
+  try {
+    await registraMovimento(id, "saida", quantidade, observacao);
+    res.status(201).json({ message: "Saída registrada com sucesso." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar movimentações
+app.get("/movimentacoes", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT m.id, m.tipo, m.quantidade, m.data_movimento, m.observacao,
+             p.id AS produto_id, p.nome AS produto_nome
+      FROM movimentacao_estoque m
+      JOIN produto p ON m.produto_id = p.id
+      ORDER BY m.data_movimento DESC
+    `);
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -250,96 +342,9 @@ app.delete("/fornecedores/:id", async (req, res) => {
   }
 });
 
-// ======================== MOVIMENTAÇÕES DE ESTOQUE ========================
+// ======================== START SERVER ========================
 
-// Listar movimentações com dados do produto
-app.get("/movimentacoes", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT m.id, m.tipo, m.quantidade, m.data_movimento, m.observacao,
-             p.id AS produto_id, p.nome AS produto_nome
-      FROM movimentacao_estoque m
-      JOIN produto p ON m.produto_id = p.id
-      ORDER BY m.data_movimento DESC
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Função auxiliar para registrar movimentação e ajustar estoque
-async function registraMovimento(produtoId, tipo, quantidade, observacao) {
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    const sinal = tipo === "entrada" ? 1 : -1;
-
-    await conn.execute(
-      `UPDATE produto SET quantidade = quantidade + ? WHERE id = ?`,
-      [sinal * quantidade, produtoId]
-    );
-
-    await conn.execute(
-      `INSERT INTO movimentacao_estoque 
-         (produto_id, tipo, quantidade, observacao) 
-       VALUES (?, ?, ?, ?)`,
-      [produtoId, tipo, quantidade, observacao || null]
-    );
-
-    await conn.commit();
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
-  }
-}
-
-// Registrar entrada
-app.post("/movimentacoes/entrada", async (req, res) => {
-  const { produtoId, quantidade, observacao } = req.body;
-  if (!produtoId || !quantidade) {
-    return res
-      .status(400)
-      .json({ error: "Produto e quantidade são obrigatórios." });
-  }
-  try {
-    await registraMovimento(produtoId, "entrada", quantidade, observacao);
-    res.status(201).json({ message: "Entrada registrada com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Registrar saída
-app.post("/movimentacoes/saida", async (req, res) => {
-  const { produtoId, quantidade, observacao } = req.body;
-  if (!produtoId || !quantidade) {
-    return res
-      .status(400)
-      .json({ error: "Produto e quantidade são obrigatórios." });
-  }
-  try {
-    const [[{ quantidade: estoqueAtual }]] = await pool.query(
-      "SELECT quantidade FROM produto WHERE id = ?",
-      [produtoId]
-    );
-
-    if (estoqueAtual < quantidade) {
-      return res.status(400).json({ error: "Estoque insuficiente." });
-    }
-
-    await registraMovimento(produtoId, "saida", quantidade, observacao);
-    res.status(201).json({ message: "Saída registrada com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ======================== INICIAR SERVIDOR ========================
-
-app.listen(3001, () => {
-  console.log("✅ API rodando em http://localhost:3001");
+const PORT = 3001;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });

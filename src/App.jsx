@@ -3,13 +3,18 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import Container from "@mui/material/Container";
+
 import Header from "./components/Header";
 import NavigationDrawer from "./components/NavigationDrawer";
+
 import ProdutoForm from "./components/ProdutoForm";
 import ProdutoList from "./components/ProdutoList";
+
 import FornecedorPage from "./pages/FornecedorPage";
 import CategoriaPage from "./pages/CategoriaPage";
 import MovimentacoesPage from "./pages/MovimentacoesPage";
+import SaidaPage from "./pages/SaidaForm";
+import EntradaPage from "./pages/EntradaForm"; // ✅ Adicionado aqui
 
 const drawerWidth = 240;
 
@@ -28,8 +33,8 @@ export default function App() {
         <Box
           component="nav"
           sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="navigation drawers"
         >
-          {/* Drawer para mobile e desktop */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -45,6 +50,7 @@ export default function App() {
           >
             <NavigationDrawer />
           </Drawer>
+
           <Drawer
             variant="permanent"
             sx={{
@@ -82,6 +88,9 @@ export default function App() {
               <Route path="/fornecedores" element={<FornecedorPage />} />
               <Route path="/categorias" element={<CategoriaPage />} />
               <Route path="/movimentacoes" element={<MovimentacoesPage />} />
+              <Route path="/saida" element={<SaidaPage />} />
+              <Route path="/entrada" element={<EntradaPage />} />{" "}
+              {/* ✅ Nova rota */}
               <Route
                 path="/"
                 element={<ProdutoForm onProdutoAdicionado={atualizar} />}
