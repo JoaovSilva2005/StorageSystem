@@ -1,59 +1,114 @@
-import React, { useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  Box,
+  Typography,
+  Alert,
+  CircularProgress,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+} from "@mui/material";
 
-const MovimentacoesPage = () => {
-  const [movs, setMovs] = useState([]);
+function MovimentacaoHistorico() {
+  const [movimentacoes, setMovimentacoes] = useState([]);
+  const [loadingMov, setLoadingMov] = useState(true);
+  const [errorMov, setErrorMov] = useState("");
+
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
-    fetch("http://localhost:3001/movimentacoes")
-      .then((res) => res.json())
-      .then((data) => setMovs(data))
-      .catch((err) => console.error(err));
-  }, []);
+    setLoadingMov(true);
+    setErrorMov("");
+    axios
+      .get("http://localhost:3001/movimentacoes", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        setMovimentacoes(res.data);
+        setLoadingMov(false);
+      })
+      .catch(() => {
+        setErrorMov("Erro ao carregar movimentações.");
+        setLoadingMov(false);
+      });
+  }, [token]);
 
   return (
-    <Box>
+    <Box maxWidth={900} mx="auto" mt={4}>
       <Typography variant="h5" gutterBottom>
-        Movimentações de Estoque
+        Histórico de Movimentações
       </Typography>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Produto</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Quantidade</TableCell>
-              <TableCell>Data</TableCell>
-              <TableCell>Observação</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {movs.map((m) => (
-              <TableRow key={m.id}>
-                <TableCell>{m.id}</TableCell>
-                <TableCell>{m.produto_nome}</TableCell>
-                <TableCell>{m.tipo}</TableCell>
-                <TableCell>{m.quantidade}</TableCell>
+
+      {loadingMov && (
+        <Box textAlign="center" mt={2}>
+          <CircularProgress />
+          <Typography mt={2}>Carregando movimentações...</Typography>
+        </Box>
+      )}
+
+      {errorMov && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMov}
+        </Alert>
+      )}
+
+      {!loadingMov && movimentacoes.length === 0 && (
+        <Typography mt={2} textAlign="center">
+          Nenhuma movimentação registrada.
+        </Typography>
+      )}
+
+      {!loadingMov && movimentacoes.length > 0 && (
+        <TableContainer component={Paper} sx={{ mb: 4 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
                 <TableCell>
-                  {new Date(m.data_movimento).toLocaleString()}
+                  <strong>Produto</strong>
                 </TableCell>
-                <TableCell>{m.observacao || "-"}</TableCell>
+                <TableCell>
+                  <strong>Tipo</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Quantidade</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Data</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Observação</strong>
+                </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {movimentacoes.map((mov) => (
+                <TableRow key={mov.id}>
+                  <TableCell>{mov.produto_nome || mov.produto_id}</TableCell>
+                  <TableCell>{mov.tipo}</TableCell>
+                  <TableCell>{mov.quantidade}</TableCell>
+                  <TableCell>
+                    {new Date(mov.data).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell>{mov.observacao || "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
-};
+}
 
-export default MovimentacoesPage;
+export default MovimentacaoHistorico;

@@ -1,74 +1,160 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Button,
+  MenuItem,
+  TextField,
+  Typography,
+  Alert,
+} from "@mui/material";
+import api from "../api"; // usando o axios configurado
 
 function MovimentacaoForm() {
   const [produtos, setProdutos] = useState([]);
   const [produtoId, setProdutoId] = useState("");
   const [tipo, setTipo] = useState("ENTRADA");
   const [quantidade, setQuantidade] = useState(1);
+  const [observacao, setObservacao] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/api/produtos")
+    api
+      .get("/api/produtos")
       .then((res) => setProdutos(res.data))
-      .catch((err) => console.error("Erro ao carregar produtos:", err));
+      .catch((err) => {
+        console.error(err);
+        setError("Erro ao carregar produtos.");
+      });
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    const qtd = Number(quantidade);
 
     if (!produtoId) {
-      alert("Selecione um produto.");
+      setError("Selecione um produto.");
       return;
     }
 
+    if (!qtd || !Number.isInteger(qtd) || qtd < 1) {
+      setError("Quantidade deve ser um número inteiro maior que zero.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      await axios.post("http://localhost:3000/api/movimentacoes", {
+      await api.post("/api/movimentacoes", {
         produto_id: produtoId,
         tipo,
-        quantidade: parseInt(quantidade),
+        quantidade: qtd,
+        observacao,
       });
-      alert("Movimentação realizada!");
-      // Limpar formulário após envio
+
+      setSuccess("Movimentação registrada com sucesso!");
       setProdutoId("");
       setTipo("ENTRADA");
       setQuantidade(1);
-    } catch (error) {
-      alert("Erro ao registrar movimentação.");
-      console.error(error);
+      setObservacao("");
+    } catch (err) {
+      const msg =
+        err.response?.data?.message || "Erro ao registrar movimentação.";
+      setError(msg);
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <select
-        value={produtoId}
-        onChange={(e) => setProdutoId(e.target.value)}
-        required
-      >
-        <option value="">Selecione um produto</option>
-        {produtos.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.nome}
-          </option>
-        ))}
-      </select>
+    <Box maxWidth={400} mx="auto" mt={3}>
+      <Typography variant="h5" gutterBottom>
+        Registrar Movimentação
+      </Typography>
 
-      <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-        <option value="ENTRADA">Entrada</option>
-        <option value="SAIDA">Saída</option>
-      </select>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
 
-      <input
-        type="number"
-        value={quantidade}
-        min={1}
-        onChange={(e) => setQuantidade(e.target.value)}
-        required
-      />
+      <form onSubmit={handleSubmit}>
+        <TextField
+          select
+          label="Produto"
+          value={produtoId}
+          onChange={(e) => setProdutoId(e.target.value)}
+          fullWidth
+          margin="normal"
+          required
+          disabled={loading}
+        >
+          <MenuItem value="">
+            <em>Selecione um produto</em>
+          </MenuItem>
+          {produtos.map((p) => (
+            <MenuItem key={p.id} value={p.id}>
+              {p.nome}
+            </MenuItem>
+          ))}
+        </TextField>
 
-      <button type="submit">Registrar</button>
-    </form>
+        <TextField
+          select
+          label="Tipo"
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value)}
+          fullWidth
+          margin="normal"
+          disabled={loading}
+        >
+          <MenuItem value="ENTRADA">Entrada</MenuItem>
+          <MenuItem value="SAIDA">Saída</MenuItem>
+        </TextField>
+
+        <TextField
+          label="Quantidade"
+          type="number"
+          inputProps={{ min: 1, step: 1 }}
+          value={quantidade}
+          onChange={(e) => setQuantidade(e.target.value)}
+          fullWidth
+          margin="normal"
+          required
+          disabled={loading}
+        />
+
+        <TextField
+          label="Observação"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+          fullWidth
+          margin="normal"
+          disabled={loading}
+          multiline
+          rows={2}
+        />
+
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          sx={{ mt: 2 }}
+          disabled={loading}
+        >
+          {loading ? "Registrando..." : "Registrar"}
+        </Button>
+      </form>
+    </Box>
   );
 }
 

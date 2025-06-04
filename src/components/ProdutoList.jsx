@@ -27,6 +27,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+import api from "../api";
+
 export default function ProdutoList({ refresh }) {
   const [produtos, setProdutos] = useState([]);
   const [filteredProdutos, setFilteredProdutos] = useState([]);
@@ -57,9 +59,8 @@ export default function ProdutoList({ refresh }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:3001/produtos");
-      if (!res.ok) throw new Error("Erro ao buscar produtos");
-      const data = await res.json();
+      const res = await api.get("/produtos"); // axios com token
+      const data = res.data;
 
       // Normaliza para garantir números e nomes de categoria/fornecedor
       const normalizados = data.map((p) => ({
@@ -75,7 +76,7 @@ export default function ProdutoList({ refresh }) {
       setProdutos(normalizados);
       setFilteredProdutos(normalizados);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Erro ao buscar produtos");
     } finally {
       setLoading(false);
     }
@@ -83,10 +84,8 @@ export default function ProdutoList({ refresh }) {
 
   const carregarCategorias = async () => {
     try {
-      const res = await fetch("http://localhost:3001/categorias");
-      if (!res.ok) throw new Error("Erro ao buscar categorias");
-      const data = await res.json();
-      setCategorias(data);
+      const res = await api.get("/categorias"); // axios com token
+      setCategorias(res.data);
     } catch (err) {
       console.error(err);
     }
@@ -94,10 +93,8 @@ export default function ProdutoList({ refresh }) {
 
   const carregarFornecedores = async () => {
     try {
-      const res = await fetch("http://localhost:3001/fornecedores");
-      if (!res.ok) throw new Error("Erro ao buscar fornecedores");
-      const data = await res.json();
-      setFornecedores(data);
+      const res = await api.get("/fornecedores"); // axios com token
+      setFornecedores(res.data);
     } catch (err) {
       console.error(err);
     }
@@ -119,16 +116,12 @@ export default function ProdutoList({ refresh }) {
   const handleDelete = async () => {
     if (!produtoParaExcluir) return;
     try {
-      const res = await fetch(
-        `http://localhost:3001/produtos/${produtoParaExcluir.id}`,
-        { method: "DELETE" }
-      );
-      if (!res.ok) throw new Error("Erro ao deletar produto");
+      await api.delete(`/produtos/${produtoParaExcluir.id}`); // axios com token
       setDeleteDialogOpen(false);
       setProdutoParaExcluir(null);
       carregarProdutos();
     } catch (err) {
-      alert("Erro ao deletar produto: " + err.message);
+      alert("Erro ao deletar produto: " + (err.message || err));
     }
   };
 
@@ -151,23 +144,18 @@ export default function ProdutoList({ refresh }) {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:3001/produtos/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          quantidade: Number(quantidade),
-          preco: Number(preco),
-          fornecedorId: idFornecedor,
-          categoriaId: idCategoria,
-        }),
-      });
-      if (!res.ok) throw new Error("Erro ao atualizar produto");
+      await api.put(`/produtos/${id}`, {
+        nome,
+        quantidade: Number(quantidade),
+        preco: Number(preco),
+        fornecedorId: idFornecedor,
+        categoriaId: idCategoria,
+      }); // axios com token
       setEditDialogOpen(false);
       setProdutoParaEditar(null);
       carregarProdutos();
     } catch (err) {
-      alert("Erro ao atualizar produto: " + err.message);
+      alert("Erro ao atualizar produto: " + (err.message || err));
     }
   };
 
@@ -338,12 +326,12 @@ export default function ProdutoList({ refresh }) {
               }))
             }
             fullWidth
-            inputProps={{ min: 0, step: "0.01" }}
+            inputProps={{ min: 0, step: 0.01 }}
           />
+
           <FormControl fullWidth>
-            <InputLabel id="select-categoria-label">Categoria</InputLabel>
+            <InputLabel>Categoria</InputLabel>
             <Select
-              labelId="select-categoria-label"
               value={produtoParaEditar?.idCategoria || ""}
               label="Categoria"
               onChange={(e) =>
@@ -353,17 +341,17 @@ export default function ProdutoList({ refresh }) {
                 }))
               }
             >
-              {categorias.map((cat) => (
-                <MenuItem key={cat.id} value={cat.id}>
-                  {cat.nome}
+              {categorias.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.nome}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+
           <FormControl fullWidth>
-            <InputLabel id="select-fornecedor-label">Fornecedor</InputLabel>
+            <InputLabel>Fornecedor</InputLabel>
             <Select
-              labelId="select-fornecedor-label"
               value={produtoParaEditar?.idFornecedor || ""}
               label="Fornecedor"
               onChange={(e) =>
@@ -373,9 +361,9 @@ export default function ProdutoList({ refresh }) {
                 }))
               }
             >
-              {fornecedores.map((forn) => (
-                <MenuItem key={forn.id} value={forn.id}>
-                  {forn.nome}
+              {fornecedores.map((f) => (
+                <MenuItem key={f.id} value={f.id}>
+                  {f.nome}
                 </MenuItem>
               ))}
             </Select>
@@ -385,7 +373,7 @@ export default function ProdutoList({ refresh }) {
           <Button onClick={() => setEditDialogOpen(false)} color="inherit">
             Cancelar
           </Button>
-          <Button onClick={handleSaveEdit} variant="contained" color="primary">
+          <Button onClick={handleSaveEdit} color="primary">
             Salvar
           </Button>
         </DialogActions>

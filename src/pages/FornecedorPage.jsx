@@ -1,112 +1,112 @@
 import React, { useEffect, useState } from "react";
 import {
+  Stack,
   Paper,
   Typography,
+  Box,
   TextField,
   Button,
-  Stack,
   CircularProgress,
   Table,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
-  Box,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
 } from "@mui/material";
+
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function FornecedorPage() {
   const [fornecedores, setFornecedores] = useState([]);
-  const [nome, setNome] = useState("");
-  const [cnpj, setCnpj] = useState("");
-  const [email, setEmail] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [form, setForm] = useState({
+    nome: "",
+    cnpj: "",
+    email: "",
+    telefone: "",
+  });
   const [loading, setLoading] = useState(false);
 
-  // Estados para edição
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [fornecedorEdit, setFornecedorEdit] = useState(null);
 
-  // Estado para confirmação exclusão
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fornecedorDelete, setFornecedorDelete] = useState(null);
 
-  // Buscar fornecedores do backend
+  // Função para tratar erro 401 (token inválido)
+  const handleUnauthorized = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
+
   const fetchFornecedores = () => {
     setLoading(true);
-    fetch("http://localhost:3001/fornecedores")
+    fetch("http://localhost:3001/fornecedores", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    })
       .then((r) => {
+        if (r.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         if (!r.ok) throw new Error("Erro ao buscar fornecedores");
         return r.json();
       })
-      .then((data) => setFornecedores(data))
-      .catch((err) => alert(err.message))
+      .then(setFornecedores)
+      .catch((err) => {
+        alert(err.message);
+        console.error(err);
+      })
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchFornecedores, []);
+  useEffect(() => {
+    fetchFornecedores();
+  }, []);
 
-  // Cadastrar novo fornecedor
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validar campos mínimos (exemplo simples)
-    if (!nome.trim() || !cnpj.trim()) {
+    if (!form.nome.trim() || !form.cnpj.trim()) {
       alert("Nome e CNPJ são obrigatórios");
       return;
     }
 
     fetch("http://localhost:3001/fornecedores", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, cnpj, email, telefone }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+      body: JSON.stringify({
+        nome: form.nome.trim(),
+        cnpj: form.cnpj.trim(),
+        email: form.email.trim(),
+        telefone: form.telefone.trim(),
+      }),
     })
-      .then((r) => {
-        if (!r.ok) throw new Error("Erro ao cadastrar fornecedor");
-        return r.json();
+      .then((res) => {
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        if (!res.ok) throw new Error("Erro ao cadastrar fornecedor");
+        return res.json();
       })
       .then(() => {
-        setNome("");
-        setCnpj("");
-        setEmail("");
-        setTelefone("");
-        fetchFornecedores();
-      })
-      .catch((err) => alert(err.message));
-  };
-
-  // Abrir diálogo edição e preencher com dados do fornecedor selecionado
-  const openEditDialog = (fornecedor) => {
-    setFornecedorEdit(fornecedor);
-    setEditDialogOpen(true);
-  };
-
-  // Salvar edição via PUT
-  const handleSaveEdit = () => {
-    // Validação básica
-    if (!fornecedorEdit.nome.trim() || !fornecedorEdit.cnpj.trim()) {
-      alert("Nome e CNPJ são obrigatórios");
-      return;
-    }
-
-    fetch(`http://localhost:3001/fornecedores/${fornecedorEdit.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fornecedorEdit),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Erro ao salvar fornecedor");
-        return r.json();
-      })
-      .then(() => {
-        setEditDialogOpen(false);
-        setFornecedorEdit(null);
+        setForm({ nome: "", cnpj: "", email: "", telefone: "" });
         fetchFornecedores();
       })
       .catch((err) => {
@@ -115,22 +115,77 @@ export default function FornecedorPage() {
       });
   };
 
-  // Abrir diálogo exclusão
+  const openEditDialog = (fornecedor) => {
+    setFornecedorEdit({ ...fornecedor });
+    setEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setFornecedorEdit(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!fornecedorEdit?.nome.trim() || !fornecedorEdit?.cnpj.trim()) {
+      alert("Nome e CNPJ são obrigatórios");
+      return;
+    }
+
+    fetch(`http://localhost:3001/fornecedores/${fornecedorEdit.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+      body: JSON.stringify({
+        nome: fornecedorEdit.nome.trim(),
+        cnpj: fornecedorEdit.cnpj.trim(),
+        email: fornecedorEdit.email?.trim() || "",
+        telefone: fornecedorEdit.telefone?.trim() || "",
+      }),
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        if (!res.ok) throw new Error("Erro ao salvar fornecedor");
+        return res.json();
+      })
+      .then(() => {
+        handleCloseEditDialog();
+        fetchFornecedores();
+      })
+      .catch((err) => {
+        alert(err.message);
+        console.error(err);
+      });
+  };
+
   const openDeleteDialog = (fornecedor) => {
     setFornecedorDelete(fornecedor);
     setDeleteDialogOpen(true);
   };
 
-  // Confirmar exclusão via DELETE
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setFornecedorDelete(null);
+  };
+
   const handleConfirmDelete = () => {
     fetch(`http://localhost:3001/fornecedores/${fornecedorDelete.id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
     })
-      .then((r) => {
-        if (!r.ok) throw new Error("Erro ao deletar fornecedor");
-        // No DELETE 204 normalmente não tem corpo, então só seguimos
-        setDeleteDialogOpen(false);
-        setFornecedorDelete(null);
+      .then((res) => {
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        if (!res.ok) throw new Error("Erro ao deletar fornecedor");
+        handleCloseDeleteDialog();
         fetchFornecedores();
       })
       .catch((err) => {
@@ -141,7 +196,7 @@ export default function FornecedorPage() {
 
   return (
     <Stack spacing={4} sx={{ maxWidth: 700, mx: "auto", py: 3 }}>
-      {/* Formulário cadastro */}
+      {/* Cadastro */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>
           Cadastro de Fornecedor
@@ -150,30 +205,31 @@ export default function FornecedorPage() {
           <Stack spacing={2}>
             <TextField
               label="Nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              name="nome"
+              value={form.nome}
+              onChange={handleInputChange}
               required
-              fullWidth
             />
             <TextField
               label="CNPJ"
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
+              name="cnpj"
+              value={form.cnpj}
+              onChange={handleInputChange}
               required
-              fullWidth
+              placeholder="00.000.000/0000-00"
             />
             <TextField
               label="Email"
+              name="email"
+              value={form.email}
+              onChange={handleInputChange}
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              fullWidth
             />
             <TextField
               label="Telefone"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-              fullWidth
+              name="telefone"
+              value={form.telefone}
+              onChange={handleInputChange}
             />
             <Button variant="contained" type="submit">
               Cadastrar
@@ -182,7 +238,7 @@ export default function FornecedorPage() {
         </Box>
       </Paper>
 
-      {/* Tabela fornecedores */}
+      {/* Lista */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>
           Fornecedores Cadastrados
@@ -192,7 +248,7 @@ export default function FornecedorPage() {
             <CircularProgress />
           </Box>
         ) : (
-          <Table size="small">
+          <Table size="small" sx={{ wordBreak: "break-word" }}>
             <TableHead>
               <TableRow>
                 <TableCell>Nome</TableCell>
@@ -203,30 +259,6 @@ export default function FornecedorPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {fornecedores.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell>{f.nome}</TableCell>
-                  <TableCell>{f.cnpj}</TableCell>
-                  <TableCell>{f.email}</TableCell>
-                  <TableCell>{f.telefone}</TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      onClick={() => openEditDialog(f)}
-                      size="small"
-                      color="primary"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => openDeleteDialog(f)}
-                      size="small"
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
               {fornecedores.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} align="center">
@@ -234,24 +266,45 @@ export default function FornecedorPage() {
                   </TableCell>
                 </TableRow>
               )}
+              {fornecedores.map((fornecedor) => (
+                <TableRow key={fornecedor.id}>
+                  <TableCell>{fornecedor.nome}</TableCell>
+                  <TableCell>{fornecedor.cnpj}</TableCell>
+                  <TableCell>{fornecedor.email || "-"}</TableCell>
+                  <TableCell>{fornecedor.telefone || "-"}</TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      color="primary"
+                      onClick={() => openEditDialog(fornecedor)}
+                      size="large"
+                      aria-label={`Editar ${fornecedor.nome}`}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      color="error"
+                      onClick={() => openDeleteDialog(fornecedor)}
+                      size="large"
+                      aria-label={`Deletar ${fornecedor.nome}`}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
       </Paper>
 
-      {/* Diálogo edição */}
-      <Dialog
-        open={editDialogOpen}
-        onClose={() => setEditDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog}>
         <DialogTitle>Editar Fornecedor</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1, minWidth: 300 }}>
             <TextField
               label="Nome"
-              fullWidth
+              name="nome"
               value={fornecedorEdit?.nome || ""}
               onChange={(e) =>
                 setFornecedorEdit((prev) => ({ ...prev, nome: e.target.value }))
@@ -260,7 +313,7 @@ export default function FornecedorPage() {
             />
             <TextField
               label="CNPJ"
-              fullWidth
+              name="cnpj"
               value={fornecedorEdit?.cnpj || ""}
               onChange={(e) =>
                 setFornecedorEdit((prev) => ({ ...prev, cnpj: e.target.value }))
@@ -269,7 +322,8 @@ export default function FornecedorPage() {
             />
             <TextField
               label="Email"
-              fullWidth
+              name="email"
+              type="email"
               value={fornecedorEdit?.email || ""}
               onChange={(e) =>
                 setFornecedorEdit((prev) => ({
@@ -280,7 +334,7 @@ export default function FornecedorPage() {
             />
             <TextField
               label="Telefone"
-              fullWidth
+              name="telefone"
               value={fornecedorEdit?.telefone || ""}
               onChange={(e) =>
                 setFornecedorEdit((prev) => ({
@@ -292,30 +346,26 @@ export default function FornecedorPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleSaveEdit} variant="contained">
+          <Button onClick={handleCloseEditDialog}>Cancelar</Button>
+          <Button variant="contained" onClick={handleSaveEdit}>
             Salvar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo exclusão */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        maxWidth="xs"
-      >
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
-          Deseja realmente excluir o fornecedor{" "}
+          Tem certeza que deseja excluir o fornecedor{" "}
           <strong>{fornecedorDelete?.nome}</strong>?
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button
-            onClick={handleConfirmDelete}
-            color="error"
             variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
           >
             Excluir
           </Button>

@@ -16,8 +16,20 @@ const EntradaForm = () => {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3001/produtos")
-      .then((res) => res.json())
+    fetch("http://localhost:3001/produtos", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/login"; // redireciona para login se token inválido
+          return;
+        }
+        if (!res.ok) throw new Error("Erro ao carregar produtos.");
+        return res.json();
+      })
       .then((data) => setProdutos(data))
       .catch(() => setError("Erro ao carregar produtos."));
   }, []);
@@ -38,16 +50,24 @@ const EntradaForm = () => {
     }
 
     try {
-      // Ajuste aqui na URL para usar o produtoId na rota
       const url = `http://localhost:3001/produtos/${produtoId}/entrada`;
 
       const resp = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
         body: JSON.stringify({
           quantidade: Number(quantidade),
         }),
       });
+
+      if (resp.status === 401) {
+        localStorage.removeItem("token");
+        window.location.href = "/login"; // redireciona para login se token inválido
+        return;
+      }
 
       const data = await resp.json();
 

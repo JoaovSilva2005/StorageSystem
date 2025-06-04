@@ -21,6 +21,9 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+// --------------------------------------------------
+// CategoriaPage
+// --------------------------------------------------
 export default function CategoriaPage() {
   const [categorias, setCategorias] = useState([]);
   const [nome, setNome] = useState("");
@@ -34,9 +37,20 @@ export default function CategoriaPage() {
 
   const fetchCategorias = () => {
     setLoading(true);
-    fetch("http://localhost:3001/categorias")
-      .then((r) => r.json())
+    fetch("http://localhost:3001/categorias", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Erro ao carregar categorias");
+        return r.json();
+      })
       .then(setCategorias)
+      .catch((err) => {
+        alert("Erro ao carregar categorias.");
+        console.error(err);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -50,16 +64,28 @@ export default function CategoriaPage() {
     }
     fetch("http://localhost:3001/categorias", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
       body: JSON.stringify({ nome: nome.trim() }),
-    }).then(() => {
-      setNome("");
-      fetchCategorias();
-    });
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao cadastrar categoria");
+        return res.json();
+      })
+      .then(() => {
+        setNome("");
+        fetchCategorias();
+      })
+      .catch((err) => {
+        alert(err.message);
+        console.error(err);
+      });
   };
 
   const openEditDialog = (categoria) => {
-    setCategoriaEdit(categoria);
+    setCategoriaEdit({ ...categoria });
     setEditDialogOpen(true);
   };
 
@@ -76,15 +102,22 @@ export default function CategoriaPage() {
 
     fetch(`http://localhost:3001/categorias/${categoriaEdit.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
       body: JSON.stringify({ nome: categoriaEdit.nome.trim() }),
     })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao salvar categoria");
+        return res.json();
+      })
       .then(() => {
         handleCloseEditDialog();
         fetchCategorias();
       })
       .catch((err) => {
-        alert("Erro ao salvar categoria");
+        alert(err.message);
         console.error(err);
       });
   };
@@ -102,13 +135,17 @@ export default function CategoriaPage() {
   const handleConfirmDelete = () => {
     fetch(`http://localhost:3001/categorias/${categoriaDelete.id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
     })
-      .then(() => {
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao deletar categoria");
         handleCloseDeleteDialog();
         fetchCategorias();
       })
       .catch((err) => {
-        alert("Erro ao deletar categoria");
+        alert(err.message);
         console.error(err);
       });
   };
@@ -154,21 +191,28 @@ export default function CategoriaPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {categorias.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>{c.nome}</TableCell>
+              {categorias.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} align="center">
+                    Nenhuma categoria cadastrada.
+                  </TableCell>
+                </TableRow>
+              )}
+              {categorias.map((categoria) => (
+                <TableRow key={categoria.id}>
+                  <TableCell>{categoria.nome}</TableCell>
                   <TableCell align="right">
                     <IconButton
-                      onClick={() => openEditDialog(c)}
-                      size="small"
                       color="primary"
+                      onClick={() => openEditDialog(categoria)}
+                      size="small"
                     >
                       <EditIcon />
                     </IconButton>
                     <IconButton
-                      onClick={() => openDeleteDialog(c)}
-                      size="small"
                       color="error"
+                      onClick={() => openDeleteDialog(categoria)}
+                      size="small"
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -180,23 +224,19 @@ export default function CategoriaPage() {
         )}
       </Paper>
 
-      {/* Diálogo de Edição */}
-      <Dialog
-        open={editDialogOpen}
-        onClose={handleCloseEditDialog}
-        maxWidth="sm"
-        fullWidth
-      >
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog}>
         <DialogTitle>Editar Categoria</DialogTitle>
         <DialogContent>
           <TextField
+            autoFocus
+            margin="dense"
             label="Nome da Categoria"
             fullWidth
             value={categoriaEdit?.nome || ""}
             onChange={(e) =>
-              setCategoriaEdit((prev) => ({ ...prev, nome: e.target.value }))
+              setCategoriaEdit({ ...categoriaEdit, nome: e.target.value })
             }
-            sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
@@ -207,21 +247,21 @@ export default function CategoriaPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de Exclusão */}
+      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirmar exclusão</DialogTitle>
         <DialogContent>
-          Tem certeza que deseja deletar a categoria{" "}
+          Deseja realmente excluir a categoria{" "}
           <strong>{categoriaDelete?.nome}</strong>?
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button
             onClick={handleConfirmDelete}
-            variant="contained"
             color="error"
+            variant="contained"
           >
-            Deletar
+            Excluir
           </Button>
         </DialogActions>
       </Dialog>

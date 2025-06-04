@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import Container from "@mui/material/Container";
@@ -14,9 +20,16 @@ import FornecedorPage from "./pages/FornecedorPage";
 import CategoriaPage from "./pages/CategoriaPage";
 import MovimentacoesPage from "./pages/MovimentacoesPage";
 import SaidaPage from "./pages/SaidaForm";
-import EntradaPage from "./pages/EntradaForm"; // ✅ Adicionado aqui
+import EntradaPage from "./pages/EntradaForm";
+import LoginPage from "./pages/LoginPage";
 
 const drawerWidth = 240;
+
+// Rota protegida (somente permite acesso se token existir)
+function PrivateRoute({ children }) {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" />;
+}
 
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -35,6 +48,7 @@ export default function App() {
           sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
           aria-label="navigation drawers"
         >
+          {/* Drawer temporário para mobile */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -51,6 +65,7 @@ export default function App() {
             <NavigationDrawer />
           </Drawer>
 
+          {/* Drawer permanente para desktop */}
           <Drawer
             variant="permanent"
             sx={{
@@ -66,6 +81,7 @@ export default function App() {
           </Drawer>
         </Box>
 
+        {/* Conteúdo principal */}
         <Box
           component="main"
           sx={{
@@ -77,23 +93,75 @@ export default function App() {
         >
           <Container maxWidth="md">
             <Routes>
+              {/* Rota pública para login */}
+              <Route path="/login" element={<LoginPage />} />
+
+              {/* Rotas protegidas */}
               <Route
                 path="/produtos/form"
-                element={<ProdutoForm onProdutoAdicionado={atualizar} />}
+                element={
+                  <PrivateRoute>
+                    <ProdutoForm onProdutoAdicionado={atualizar} />
+                  </PrivateRoute>
+                }
               />
               <Route
                 path="/produtos/lista"
-                element={<ProdutoList refresh={refresh} />}
+                element={
+                  <PrivateRoute>
+                    <ProdutoList refresh={refresh} />
+                  </PrivateRoute>
+                }
               />
-              <Route path="/fornecedores" element={<FornecedorPage />} />
-              <Route path="/categorias" element={<CategoriaPage />} />
-              <Route path="/movimentacoes" element={<MovimentacoesPage />} />
-              <Route path="/saida" element={<SaidaPage />} />
-              <Route path="/entrada" element={<EntradaPage />} />{" "}
-              {/* ✅ Nova rota */}
+              <Route
+                path="/fornecedores"
+                element={
+                  <PrivateRoute>
+                    <FornecedorPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/categorias"
+                element={
+                  <PrivateRoute>
+                    <CategoriaPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/movimentacoes"
+                element={
+                  <PrivateRoute>
+                    <MovimentacoesPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/saida"
+                element={
+                  <PrivateRoute>
+                    <SaidaPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/entrada"
+                element={
+                  <PrivateRoute>
+                    <EntradaPage />
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Rota padrão */}
               <Route
                 path="/"
-                element={<ProdutoForm onProdutoAdicionado={atualizar} />}
+                element={
+                  <PrivateRoute>
+                    <ProdutoForm onProdutoAdicionado={atualizar} />
+                  </PrivateRoute>
+                }
               />
             </Routes>
           </Container>

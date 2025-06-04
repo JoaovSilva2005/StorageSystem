@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -11,11 +12,19 @@ import {
   Button,
   CircularProgress,
   Stack,
-  IconButton,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import api from "../api"; // importe o axios configurado
 
 export default function ProdutoForm({ onProdutoAdicionado }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
   const [nome, setNome] = useState("");
   const [quantidade, setQuantidade] = useState("");
   const [preco, setPreco] = useState("");
@@ -28,39 +37,39 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
 
   useEffect(() => {
     setLoadingF(true);
-    fetch("http://localhost:3001/fornecedores")
-      .then((r) => r.json())
-      .then((d) => {
-        setFornecedores(d);
-        if (d.length) setFornecedorId(d[0].id);
+    api
+      .get("/fornecedores")
+      .then((res) => {
+        setFornecedores(res.data);
+        if (res.data.length) setFornecedorId(res.data[0].id);
       })
+      .catch(() => setFornecedores([]))
       .finally(() => setLoadingF(false));
 
     setLoadingC(true);
-    fetch("http://localhost:3001/categorias")
-      .then((r) => r.json())
-      .then((d) => {
-        setCategorias(d);
-        if (d.length) setCategoriaId(d[0].id);
+    api
+      .get("/categorias")
+      .then((res) => {
+        setCategorias(res.data);
+        if (res.data.length) setCategoriaId(res.data[0].id);
       })
+      .catch(() => setCategorias([]))
       .finally(() => setLoadingC(false));
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // valida...
-    await fetch("http://localhost:3001/produtos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nome,
-        quantidade: Number(quantidade),
-        preco: Number(preco),
-        fornecedorId,
-        categoriaId,
-      }),
+
+    await api.post("/produtos", {
+      nome,
+      quantidade: Number(quantidade),
+      preco: Number(preco),
+      fornecedorId,
+      categoriaId,
     });
+
     onProdutoAdicionado();
+
     setNome("");
     setQuantidade("");
     setPreco("");

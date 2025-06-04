@@ -1,27 +1,88 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2/promise");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Configuração do banco de dados
+// Configuração do banco MySQL
 const dbConfig = {
   host: "localhost",
   user: "root",
   password: "root",
   database: "estoque_db",
 };
-
 const pool = mysql.createPool(dbConfig);
 
-// ======================== PRODUTOS ========================
+// Middleware para autenticar JWT
+const autenticarToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Token não fornecido." });
 
-// Listar produtos com categoria e fornecedor
-app.get("/produtos", async (req, res) => {
+  jwt.verify(token, "seusegredosecreto", (err, usuario) => {
+    if (err) return res.status(403).json({ error: "Token inválido." });
+    req.usuario = usuario;
+    next();
+  });
+};
+
+// Registro de usuário
+app.post("/register", async (req, res) => {
+  const { nome, email, senha } = req.body;
+  if (!nome || !email || !senha)
+    return res
+      .status(400)
+      .json({ error: "Nome, email e senha são obrigatórios." });
+
+  try {
+    const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
+      email,
+    ]);
+    if (rows.length > 0)
+      return res.status(409).json({ error: "Email já cadastrado." });
+
+    const hash = await bcrypt.hash(senha, 10);
+    await pool.execute(
+      "INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)",
+      [nome, email, hash]
+    );
+    res.status(201).json({ message: "Usuário registrado com sucesso." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Login de usuário
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+  try {
+    const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
+      email,
+    ]);
+    if (rows.length === 0)
+      return res.status(401).json({ error: "Credenciais inválidas." });
+
+    const user = rows[0];
+    const match = await bcrypt.compare(senha, user.senha);
+    if (!match)
+      return res.status(401).json({ error: "Credenciais inválidas." });
+
+    const token = jwt.sign({ id: user.id, email }, "seusegredosecreto", {
+      expiresIn: "1h",
+    });
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================= PRODUTOS =================
+
+app.get("/produtos", autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT p.id, p.nome, p.quantidade, p.preco,
@@ -51,17 +112,14 @@ app.get("/produtos", async (req, res) => {
   }
 });
 
-// Criar produto
-app.post("/produtos", async (req, res) => {
+app.post("/produtos", autenticarToken, async (req, res) => {
   const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
-
   try {
     const [result] = await pool.execute(
       `INSERT INTO produto (nome, quantidade, preco, categoria_id, fornecedor_id)
        VALUES (?, ?, ?, ?, ?)`,
       [nome, quantidade, preco, categoriaId || null, fornecedorId || null]
     );
-
     res.status(201).json({
       id: result.insertId,
       nome,
@@ -75,16 +133,12 @@ app.post("/produtos", async (req, res) => {
   }
 });
 
-// Atualizar produto
-app.put("/produtos/:id", async (req, res) => {
+app.put("/produtos/:id", autenticarToken, async (req, res) => {
   const { id } = req.params;
   const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
-
   try {
     await pool.execute(
-      `UPDATE produto
-       SET nome = ?, quantidade = ?, preco = ?, categoria_id = ?, fornecedor_id = ?
-       WHERE id = ?`,
+      `UPDATE produto SET nome = ?, quantidade = ?, preco = ?, categoria_id = ?, fornecedor_id = ? WHERE id = ?`,
       [nome, quantidade, preco, categoriaId || null, fornecedorId || null, id]
     );
     res.status(204).send();
@@ -93,10 +147,8 @@ app.put("/produtos/:id", async (req, res) => {
   }
 });
 
-// Deletar produto
-app.delete("/produtos/:id", async (req, res) => {
+app.delete("/produtos/:id", autenticarToken, async (req, res) => {
   const { id } = req.params;
-
   try {
     await pool.execute("DELETE FROM produto WHERE id = ?", [id]);
     res.status(204).send();
@@ -105,41 +157,31 @@ app.delete("/produtos/:id", async (req, res) => {
   }
 });
 
-// ======================== MOVIMENTAÇÕES DE ESTOQUE ========================
+// ================= MOVIMENTAÇÕES =================
 
-// Função auxiliar para registrar movimentação (entrada ou saída)
 async function registraMovimento(produtoId, tipo, quantidade, observacao) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-
     const sinal = tipo === "entrada" ? 1 : -1;
-
-    // Atualiza estoque
     const [rows] = await conn.query(
       "SELECT quantidade FROM produto WHERE id = ?",
       [produtoId]
     );
-    if (rows.length === 0) {
-      throw new Error("Produto não encontrado.");
-    }
-
+    if (rows.length === 0) throw new Error("Produto não encontrado.");
     const quantidadeAtual = rows[0].quantidade;
-    if (tipo === "saida" && quantidade > quantidadeAtual) {
-      throw new Error("Estoque insuficiente para a saída.");
-    }
+    if (tipo === "saida" && quantidade > quantidadeAtual)
+      throw new Error("Estoque insuficiente.");
 
     await conn.execute(
-      `UPDATE produto SET quantidade = quantidade + ? WHERE id = ?`,
+      "UPDATE produto SET quantidade = quantidade + ? WHERE id = ?",
       [sinal * quantidade, produtoId]
     );
-
     await conn.execute(
       `INSERT INTO movimentacao_estoque (produto_id, tipo, quantidade, observacao)
        VALUES (?, ?, ?, ?)`,
       [produtoId, tipo, quantidade, observacao || null]
     );
-
     await conn.commit();
   } catch (err) {
     await conn.rollback();
@@ -149,14 +191,11 @@ async function registraMovimento(produtoId, tipo, quantidade, observacao) {
   }
 }
 
-// Registrar entrada de produto (rota usada no frontend)
-app.post("/produtos/:id/entrada", async (req, res) => {
+app.post("/produtos/:id/entrada", autenticarToken, async (req, res) => {
   const { id } = req.params;
   const { quantidade, observacao } = req.body;
-
-  if (!quantidade || quantidade <= 0) {
+  if (!quantidade || quantidade <= 0)
     return res.status(400).json({ error: "Quantidade inválida." });
-  }
 
   try {
     await registraMovimento(id, "entrada", quantidade, observacao);
@@ -166,14 +205,11 @@ app.post("/produtos/:id/entrada", async (req, res) => {
   }
 });
 
-// Registrar saída de produto (rota usada no frontend)
-app.post("/produtos/:id/saida", async (req, res) => {
+app.post("/produtos/:id/saida", autenticarToken, async (req, res) => {
   const { id } = req.params;
   const { quantidade, observacao } = req.body;
-
-  if (!quantidade || quantidade <= 0) {
+  if (!quantidade || quantidade <= 0)
     return res.status(400).json({ error: "Quantidade inválida." });
-  }
 
   try {
     await registraMovimento(id, "saida", quantidade, observacao);
@@ -183,8 +219,7 @@ app.post("/produtos/:id/saida", async (req, res) => {
   }
 });
 
-// Listar movimentações
-app.get("/movimentacoes", async (req, res) => {
+app.get("/movimentacoes", autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT m.id, m.tipo, m.quantidade, m.data_movimento, m.observacao,
@@ -193,27 +228,39 @@ app.get("/movimentacoes", async (req, res) => {
       JOIN produto p ON m.produto_id = p.id
       ORDER BY m.data_movimento DESC
     `);
-    res.json(rows);
+
+    const movimentacoes = rows.map((r) => ({
+      id: r.id,
+      tipo: r.tipo,
+      quantidade: r.quantidade,
+      data_movimento: r.data_movimento,
+      observacao: r.observacao,
+      produto: {
+        id: r.produto_id,
+        nome: r.produto_nome,
+      },
+    }));
+
+    res.json(movimentacoes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ======================== CATEGORIAS ========================
+// ================= CATEGORIAS =================
 
-// Listar categorias
-app.get("/categorias", async (req, res) => {
+app.get("/categorias", autenticarToken, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT id, nome FROM categoria");
+    const [rows] = await pool.query("SELECT * FROM categoria ORDER BY nome");
     res.json(rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Criar categoria
-app.post("/categorias", async (req, res) => {
+app.post("/categorias", autenticarToken, async (req, res) => {
   const { nome } = req.body;
+  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
 
   try {
     const [result] = await pool.execute(
@@ -226,124 +273,85 @@ app.post("/categorias", async (req, res) => {
   }
 });
 
-// Atualizar categoria
-app.put("/categorias/:id", async (req, res) => {
+app.put("/categorias/:id", autenticarToken, async (req, res) => {
   const { id } = req.params;
   const { nome } = req.body;
+  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
 
   try {
-    const [result] = await pool.execute(
-      "UPDATE categoria SET nome = ? WHERE id = ?",
-      [nome, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Categoria não encontrada" });
-    }
-
-    res.json({ id, nome });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Deletar categoria
-app.delete("/categorias/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [result] = await pool.execute("DELETE FROM categoria WHERE id = ?", [
+    await pool.execute("UPDATE categoria SET nome = ? WHERE id = ?", [
+      nome,
       id,
     ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Categoria não encontrada" });
-    }
-
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ======================== FORNECEDORES ========================
-
-// Listar fornecedores
-app.get("/fornecedores", async (req, res) => {
+app.delete("/categorias/:id", autenticarToken, async (req, res) => {
+  const { id } = req.params;
   try {
-    const [rows] = await pool.query(
-      "SELECT id, nome, cnpj, email, telefone FROM fornecedor"
-    );
+    await pool.execute("DELETE FROM categoria WHERE id = ?", [id]);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================= FORNECEDORES =================
+
+app.get("/fornecedores", autenticarToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM fornecedor ORDER BY nome");
     res.json(rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Criar fornecedor
-app.post("/fornecedores", async (req, res) => {
-  const { nome, cnpj, email, telefone } = req.body;
+app.post("/fornecedores", autenticarToken, async (req, res) => {
+  const { nome } = req.body;
+  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
 
   try {
     const [result] = await pool.execute(
-      "INSERT INTO fornecedor (nome, cnpj, email, telefone) VALUES (?, ?, ?, ?)",
-      [nome, cnpj, email, telefone]
+      "INSERT INTO fornecedor (nome) VALUES (?)",
+      [nome]
     );
+    res.status(201).json({ id: result.insertId, nome });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    res.status(201).json({
-      id: result.insertId,
+app.put("/fornecedores/:id", autenticarToken, async (req, res) => {
+  const { id } = req.params;
+  const { nome } = req.body;
+  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
+
+  try {
+    await pool.execute("UPDATE fornecedor SET nome = ? WHERE id = ?", [
       nome,
-      cnpj,
-      email,
-      telefone,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Atualizar fornecedor
-app.put("/fornecedores/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nome, cnpj, email, telefone } = req.body;
-
-  try {
-    const [result] = await pool.execute(
-      "UPDATE fornecedor SET nome = ?, cnpj = ?, email = ?, telefone = ? WHERE id = ?",
-      [nome, cnpj, email, telefone, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Fornecedor não encontrado" });
-    }
-
-    res.json({ id, nome, cnpj, email, telefone });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Deletar fornecedor
-app.delete("/fornecedores/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [result] = await pool.execute("DELETE FROM fornecedor WHERE id = ?", [
       id,
     ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Fornecedor não encontrado" });
-    }
-
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ======================== START SERVER ========================
+app.delete("/fornecedores/:id", autenticarToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.execute("DELETE FROM fornecedor WHERE id = ?", [id]);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
+// Servidor ouvindo
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

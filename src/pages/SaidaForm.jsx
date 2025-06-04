@@ -14,11 +14,29 @@ const SaidaForm = () => {
   const [quantidade, setQuantidade] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Função para lidar com token inválido (opcional)
+  const handleUnauthorized = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
 
   useEffect(() => {
-    fetch("http://localhost:3001/produtos")
-      .then((res) => res.json())
-      .then((data) => setProdutos(data))
+    fetch("http://localhost:3001/produtos", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        if (!res.ok) throw new Error("Erro ao carregar produtos");
+        return res.json();
+      })
+      .then(setProdutos)
       .catch(() => setError("Erro ao carregar produtos."));
   }, []);
 
@@ -27,27 +45,38 @@ const SaidaForm = () => {
     setError("");
     setSuccess("");
 
-    if (!produtoId || !quantidade) {
-      setError("Produto e quantidade são obrigatórios.");
+    const qtd = Number(quantidade);
+
+    if (!produtoId) {
+      setError("Produto é obrigatório.");
       return;
     }
 
-    if (quantidade <= 0) {
-      setError("Quantidade deve ser maior que zero.");
+    if (!quantidade || isNaN(qtd) || !Number.isInteger(qtd) || qtd <= 0) {
+      setError("Quantidade deve ser um número inteiro maior que zero.");
       return;
     }
 
+    setLoading(true);
     try {
       const resp = await fetch(
         `http://localhost:3001/produtos/${produtoId}/saida`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          },
           body: JSON.stringify({
-            quantidade: Number(quantidade),
+            quantidade: qtd,
           }),
         }
       );
+
+      if (resp.status === 401) {
+        handleUnauthorized();
+        return;
+      }
 
       const data = await resp.json();
 
@@ -60,6 +89,8 @@ const SaidaForm = () => {
       setQuantidade("");
     } catch (err) {
       setError(err.message || "Falha ao registrar saída.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,6 +118,7 @@ const SaidaForm = () => {
           onChange={(e) => setProdutoId(e.target.value)}
           margin="normal"
           required
+          disabled={loading}
         >
           {produtos.map((p) => (
             <MenuItem key={p.id} value={p.id}>
@@ -99,15 +131,22 @@ const SaidaForm = () => {
           fullWidth
           label="Quantidade"
           type="number"
+          inputProps={{ min: 1, step: 1 }}
           value={quantidade}
           onChange={(e) => setQuantidade(e.target.value)}
           margin="normal"
           required
-          inputProps={{ min: 1 }}
+          disabled={loading}
         />
 
-        <Button variant="contained" type="submit" fullWidth sx={{ mt: 2 }}>
-          Registrar Saída
+        <Button
+          variant="contained"
+          type="submit"
+          fullWidth
+          sx={{ mt: 2 }}
+          disabled={loading}
+        >
+          {loading ? "Registrando..." : "Registrar Saída"}
         </Button>
       </form>
     </Box>
