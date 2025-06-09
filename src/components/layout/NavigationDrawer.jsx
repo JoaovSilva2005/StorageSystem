@@ -8,6 +8,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 
+import DashboardIcon from "@mui/icons-material/Dashboard";
 import AddBoxIcon from "@mui/icons-material/AddBox";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import SyncAltIcon from "@mui/icons-material/SyncAlt";
@@ -31,7 +32,6 @@ const NavigationDrawer = () => {
     "&:hover": {
       bgcolor: isActive ? activeColor + "33" : "rgba(0,0,0,0.04)",
       color: activeColor,
-      // NÃO alterar a cor do ícone no hover para manter a cor original
     },
     "& .MuiListItemIcon-root": {
       color: isActive ? activeColor : "rgba(0,0,0,0.54)",
@@ -192,6 +192,32 @@ const NavigationDrawer = () => {
                 <CategoryIcon sx={{ color: "#9c27b0" }} />
               </ListItemIcon>
               <ListItemText primary="Categorias" />
+            </ListItemButton>
+          )}
+        </NavLink>
+
+        {/* Nova seção para Dashboard e futuros itens */}
+        <Divider sx={{ my: 2 }} />
+        <Typography
+          variant="subtitle2"
+          sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
+        >
+          Administração
+        </Typography>
+        <NavLink
+          to="/dashboard"
+          end
+          style={({ isActive }) => getLinkStyle(isActive, "#1976d2")}
+        >
+          {({ isActive }) => (
+            <ListItemButton
+              sx={listItemSx(isActive, "#1976d2")}
+              selected={isActive}
+            >
+              <ListItemIcon>
+                <DashboardIcon sx={{ color: "#1976d2" }} />
+              </ListItemIcon>
+              <ListItemText primary="Dashboard" />
             </ListItemButton>
           )}
         </NavLink>

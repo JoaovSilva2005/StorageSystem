@@ -1,4 +1,3 @@
-// src/routes/AppRoutes.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -11,6 +10,7 @@ import MovimentacoesPage from "../features/movimentacoes/MovimentacoesPage";
 import SaidaPage from "../features/movimentacoes/SaidaForm";
 import EntradaPage from "../features/movimentacoes/EntradaForm";
 import LoginPage from "../features/auth/LoginPage";
+import DashboardPage from "../features/dashboard/DashboardPage";
 
 // Componente para proteger rotas com token
 function PrivateRoute({ children }) {
@@ -25,6 +25,14 @@ export default function AppRoutes({ atualizar, refresh }) {
       <Route path="/login" element={<LoginPage />} />
 
       {/* Rotas protegidas */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <DashboardPage />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/produtos/form"
         element={
@@ -82,15 +90,8 @@ export default function AppRoutes({ atualizar, refresh }) {
         }
       />
 
-      {/* Rota padrão */}
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <ProdutoForm onProdutoAdicionado={atualizar} />
-          </PrivateRoute>
-        }
-      />
+      {/* Rota padrão redireciona para dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
 }
