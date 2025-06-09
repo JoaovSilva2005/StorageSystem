@@ -13,7 +13,7 @@ import {
   CircularProgress,
   Stack,
 } from "@mui/material";
-import api from "../api"; // importe o axios configurado
+import api from "../../services/api"; // importe o axios configurado
 
 export default function ProdutoForm({ onProdutoAdicionado }) {
   const navigate = useNavigate();

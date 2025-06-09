@@ -8,7 +8,7 @@ import {
   Box,
   Paper,
 } from "@mui/material";
-import api from "../api";
+import api from "../../services/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
