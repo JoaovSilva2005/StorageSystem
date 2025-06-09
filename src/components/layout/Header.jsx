@@ -11,27 +11,52 @@ const Header = ({ onMenuClick }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // remove token
-    navigate("/login"); // redireciona para login
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   return (
-    <AppBar component="nav">
-      <Toolbar>
+    <AppBar
+      component="nav"
+      position="fixed"
+      sx={{
+        backgroundColor: "#1976d2", // azul padrão do MUI, mas você pode mudar
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        zIndex: (theme) => theme.zIndex.drawer + 1, // para ficar acima do drawer
+      }}
+    >
+      <Toolbar sx={{ minHeight: 64 }}>
         <IconButton
           color="inherit"
           edge="start"
-          sx={{ mr: 2, display: { sm: "none" } }}
+          aria-label="menu"
           onClick={onMenuClick}
+          sx={{ mr: 2, display: { sm: "none" } }}
         >
           <MenuIcon />
         </IconButton>
 
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{ flexGrow: 1, fontWeight: "bold", letterSpacing: 1 }}
+        >
           Sistema de Estoque
         </Typography>
 
-        <Button color="inherit" onClick={handleLogout}>
+        <Button
+          color="inherit"
+          onClick={handleLogout}
+          sx={{
+            textTransform: "none", // sem maiúsculas automáticas
+            fontWeight: "bold",
+            border: "1px solid transparent",
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.15)",
+              borderColor: "white",
+            },
+          }}
+        >
           Logout
         </Button>
       </Toolbar>

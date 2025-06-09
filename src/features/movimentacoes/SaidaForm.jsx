@@ -12,11 +12,11 @@ const SaidaForm = () => {
   const [produtos, setProdutos] = useState([]);
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
+  const [observacao, setObservacao] = useState(""); // novo estado
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Função para lidar com token inválido (opcional)
   const handleUnauthorized = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
@@ -69,6 +69,7 @@ const SaidaForm = () => {
           },
           body: JSON.stringify({
             quantidade: qtd,
+            observacao, // enviar observação
           }),
         }
       );
@@ -87,6 +88,7 @@ const SaidaForm = () => {
       setSuccess("Saída registrada com sucesso!");
       setProdutoId("");
       setQuantidade("");
+      setObservacao(""); // limpar campo
     } catch (err) {
       setError(err.message || "Falha ao registrar saída.");
     } finally {
@@ -136,6 +138,18 @@ const SaidaForm = () => {
           onChange={(e) => setQuantidade(e.target.value)}
           margin="normal"
           required
+          disabled={loading}
+        />
+
+        <TextField
+          fullWidth
+          label="Observação"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+          margin="normal"
+          multiline
+          rows={2}
+          placeholder="Ex: Saída para cliente XYZ..."
           disabled={loading}
         />
 

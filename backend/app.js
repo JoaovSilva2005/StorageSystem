@@ -301,51 +301,76 @@ app.delete("/categorias/:id", autenticarToken, async (req, res) => {
 
 // ================= FORNECEDORES =================
 
+// Rota para listar todos fornecedores
 app.get("/fornecedores", autenticarToken, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM fornecedor ORDER BY nome");
+    const [rows] = await pool.query("SELECT * FROM fornecedor");
     res.json(rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Rota para criar um novo fornecedor
 app.post("/fornecedores", autenticarToken, async (req, res) => {
-  const { nome } = req.body;
-  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
+  const { nome, cnpj, email, telefone } = req.body;
+
+  if (!nome || !cnpj) {
+    return res.status(400).json({ error: "Nome e CNPJ são obrigatórios." });
+  }
 
   try {
     const [result] = await pool.execute(
-      "INSERT INTO fornecedor (nome) VALUES (?)",
-      [nome]
+      "INSERT INTO fornecedor (nome, cnpj, email, telefone) VALUES (?, ?, ?, ?)",
+      [nome, cnpj, email || null, telefone || null]
     );
-    res.status(201).json({ id: result.insertId, nome });
+    res.status(201).json({
+      id: result.insertId,
+      nome,
+      cnpj,
+      email,
+      telefone,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Rota para atualizar um fornecedor existente
 app.put("/fornecedores/:id", autenticarToken, async (req, res) => {
   const { id } = req.params;
-  const { nome } = req.body;
-  if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
+  const { nome, cnpj, email, telefone } = req.body;
+
+  if (!nome || !cnpj) {
+    return res.status(400).json({ error: "Nome e CNPJ são obrigatórios." });
+  }
 
   try {
-    await pool.execute("UPDATE fornecedor SET nome = ? WHERE id = ?", [
-      nome,
-      id,
-    ]);
-    res.status(204).send();
+    const [result] = await pool.execute(
+      "UPDATE fornecedor SET nome = ?, cnpj = ?, email = ?, telefone = ? WHERE id = ?",
+      [nome, cnpj, email || null, telefone || null, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Fornecedor não encontrado." });
+    }
+    res.json({ message: "Fornecedor atualizado com sucesso." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Rota para deletar um fornecedor
 app.delete("/fornecedores/:id", autenticarToken, async (req, res) => {
   const { id } = req.params;
+
   try {
-    await pool.execute("DELETE FROM fornecedor WHERE id = ?", [id]);
-    res.status(204).send();
+    const [result] = await pool.execute("DELETE FROM fornecedor WHERE id = ?", [
+      id,
+    ]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Fornecedor não encontrado." });
+    }
+    res.json({ message: "Fornecedor excluído com sucesso." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

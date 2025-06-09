@@ -19,15 +19,50 @@ import CategoryIcon from "@mui/icons-material/Category";
 const NavigationDrawer = () => {
   const getLinkStyle = (isActive, activeColor) => ({
     textDecoration: "none",
-    color: isActive ? activeColor : "inherit",
+    color: isActive ? activeColor : "rgba(0,0,0,0.8)",
+    fontWeight: isActive ? "600" : "400",
+  });
+
+  const listItemSx = (isActive, activeColor) => ({
+    borderRadius: 1,
+    mb: 0.5,
+    color: isActive ? activeColor : "rgba(0,0,0,0.8)",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      bgcolor: isActive ? activeColor + "33" : "rgba(0,0,0,0.04)",
+      color: activeColor,
+      // NÃO alterar a cor do ícone no hover para manter a cor original
+    },
+    "& .MuiListItemIcon-root": {
+      color: isActive ? activeColor : "rgba(0,0,0,0.54)",
+      minWidth: 36,
+    },
   });
 
   return (
-    <Box sx={{ textAlign: "center", p: 1 }}>
-      <Typography variant="h6" sx={{ my: 2 }}>
+    <Box
+      sx={{
+        textAlign: "center",
+        p: 2,
+        bgcolor: "#fafafa",
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)",
+        maxWidth: 280,
+        mx: "auto",
+      }}
+    >
+      <Typography
+        variant="h6"
+        sx={{
+          my: 2,
+          fontWeight: "700",
+          letterSpacing: 1.1,
+          color: "#1976d2",
+        }}
+      >
         Estoque
       </Typography>
-      <Divider />
+      <Divider sx={{ mb: 2 }} />
       <List>
         <NavLink
           to="/produtos/form"
@@ -35,9 +70,12 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#1976d2")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#1976d2")}
+              selected={isActive}
+            >
               <ListItemIcon>
-                <AddBoxIcon color="primary" />
+                <AddBoxIcon sx={{ color: "#1976d2" }} />
               </ListItemIcon>
               <ListItemText primary="Cadastrar Produto" />
             </ListItemButton>
@@ -50,16 +88,19 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#1976d2")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#1976d2")}
+              selected={isActive}
+            >
               <ListItemIcon>
-                <FormatListBulletedIcon color="primary" />
+                <FormatListBulletedIcon sx={{ color: "#1976d2" }} />
               </ListItemIcon>
               <ListItemText primary="Listar Produtos" />
             </ListItemButton>
           )}
         </NavLink>
 
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 2 }} />
 
         <NavLink
           to="/entrada"
@@ -67,7 +108,10 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#0288d1")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#0288d1")}
+              selected={isActive}
+            >
               <ListItemIcon>
                 <ArrowCircleUpIcon sx={{ color: "#0288d1" }} />
               </ListItemIcon>
@@ -82,7 +126,10 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#d32f2f")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#d32f2f")}
+              selected={isActive}
+            >
               <ListItemIcon>
                 <ArrowCircleDownIcon sx={{ color: "#d32f2f" }} />
               </ListItemIcon>
@@ -91,7 +138,7 @@ const NavigationDrawer = () => {
           )}
         </NavLink>
 
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 2 }} />
 
         <NavLink
           to="/movimentacoes"
@@ -99,16 +146,19 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#2e7d32")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#2e7d32")}
+              selected={isActive}
+            >
               <ListItemIcon>
-                <SyncAltIcon color="success" />
+                <SyncAltIcon sx={{ color: "#2e7d32" }} />
               </ListItemIcon>
               <ListItemText primary="Movimentações" />
             </ListItemButton>
           )}
         </NavLink>
 
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 2 }} />
 
         <NavLink
           to="/fornecedores"
@@ -116,9 +166,12 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#9c27b0")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#9c27b0")}
+              selected={isActive}
+            >
               <ListItemIcon>
-                <PeopleIcon color="secondary" />
+                <PeopleIcon sx={{ color: "#9c27b0" }} />
               </ListItemIcon>
               <ListItemText primary="Fornecedores" />
             </ListItemButton>
@@ -131,9 +184,12 @@ const NavigationDrawer = () => {
           style={({ isActive }) => getLinkStyle(isActive, "#9c27b0")}
         >
           {({ isActive }) => (
-            <ListItemButton selected={isActive}>
+            <ListItemButton
+              sx={listItemSx(isActive, "#9c27b0")}
+              selected={isActive}
+            >
               <ListItemIcon>
-                <CategoryIcon color="secondary" />
+                <CategoryIcon sx={{ color: "#9c27b0" }} />
               </ListItemIcon>
               <ListItemText primary="Categorias" />
             </ListItemButton>

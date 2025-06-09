@@ -13,17 +13,10 @@ import {
   CircularProgress,
   Stack,
 } from "@mui/material";
-import api from "../../services/api"; // importe o axios configurado
+import api from "../../services/api";
 
 export default function ProdutoForm({ onProdutoAdicionado }) {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
-  }, [navigate]);
 
   const [nome, setNome] = useState("");
   const [quantidade, setQuantidade] = useState("");
@@ -34,6 +27,14 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
   const [categoriaId, setCategoriaId] = useState("");
   const [loadingF, setLoadingF] = useState(false);
   const [loadingC, setLoadingC] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   useEffect(() => {
     setLoadingF(true);
@@ -59,36 +60,70 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    await api.post("/produtos", {
-      nome,
-      quantidade: Number(quantidade),
-      preco: Number(preco),
-      fornecedorId,
-      categoriaId,
-    });
-
-    onProdutoAdicionado();
-
-    setNome("");
-    setQuantidade("");
-    setPreco("");
+    setSubmitting(true);
+    try {
+      await api.post("/produtos", {
+        nome,
+        quantidade: Number(quantidade),
+        preco: Number(preco),
+        fornecedorId,
+        categoriaId,
+      });
+      onProdutoAdicionado();
+      setNome("");
+      setQuantidade("");
+      setPreco("");
+    } catch (error) {
+      // Aqui você pode adicionar tratamento de erro se quiser
+      console.error("Erro ao adicionar produto:", error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Paper sx={{ p: 3, maxWidth: 600, mx: "auto" }}>
-      <Typography variant="h6" gutterBottom>
+    <Paper
+      sx={{
+        p: 4,
+        maxWidth: 600,
+        mx: "auto",
+        mt: 4,
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+      }}
+      elevation={3}
+    >
+      <Typography
+        variant="h5"
+        gutterBottom
+        sx={{ fontWeight: "bold", mb: 3, color: "primary.main" }}
+      >
         Cadastrar Produto
       </Typography>
 
-      <Box component="form" onSubmit={handleSubmit} noValidate>
-        <Stack spacing={2}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
+        sx={{ cursor: submitting ? "wait" : "default" }}
+      >
+        <Stack spacing={3}>
           <TextField
             fullWidth
             label="Nome"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             required
+            disabled={submitting}
+            sx={{
+              "& .MuiInputBase-root": {
+                backgroundColor: "#f9f9f9",
+                borderRadius: 1,
+              },
+              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "primary.main",
+              },
+            }}
           />
 
           <TextField
@@ -99,6 +134,16 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
             onChange={(e) => setQuantidade(e.target.value)}
             inputProps={{ min: 0 }}
             required
+            disabled={submitting}
+            sx={{
+              "& .MuiInputBase-root": {
+                backgroundColor: "#f9f9f9",
+                borderRadius: 1,
+              },
+              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "primary.main",
+              },
+            }}
           />
 
           <TextField
@@ -109,12 +154,24 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
             onChange={(e) => setPreco(e.target.value)}
             inputProps={{ step: 0.01, min: 0 }}
             required
+            disabled={submitting}
+            sx={{
+              "& .MuiInputBase-root": {
+                backgroundColor: "#f9f9f9",
+                borderRadius: 1,
+              },
+              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "primary.main",
+              },
+            }}
           />
 
-          <FormControl fullWidth>
+          <FormControl fullWidth disabled={loadingF || submitting}>
             <InputLabel>Fornecedor</InputLabel>
             {loadingF ? (
-              <CircularProgress size={24} />
+              <Box display="flex" justifyContent="center" py={1}>
+                <CircularProgress size={28} />
+              </Box>
             ) : (
               <Select
                 value={fornecedorId}
@@ -130,10 +187,12 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
             )}
           </FormControl>
 
-          <FormControl fullWidth>
+          <FormControl fullWidth disabled={loadingC || submitting}>
             <InputLabel>Categoria</InputLabel>
             {loadingC ? (
-              <CircularProgress size={24} />
+              <Box display="flex" justifyContent="center" py={1}>
+                <CircularProgress size={28} />
+              </Box>
             ) : (
               <Select
                 value={categoriaId}
@@ -150,8 +209,21 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
           </FormControl>
 
           <Box display="flex" justifyContent="flex-end">
-            <Button type="submit" variant="contained">
-              Adicionar
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={submitting}
+              startIcon={
+                submitting && <CircularProgress size={20} color="inherit" />
+              }
+              sx={{
+                textTransform: "none",
+                fontWeight: "bold",
+                px: 4,
+              }}
+            >
+              {submitting ? "Adicionando..." : "Adicionar"}
             </Button>
           </Box>
         </Stack>

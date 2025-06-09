@@ -21,6 +21,7 @@ import {
 
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import api from "../../services/api"; // ajuste o caminho conforme a estrutura do seu projeto
 
 export default function FornecedorPage() {
   const [fornecedores, setFornecedores] = useState([]);
@@ -31,40 +32,31 @@ export default function FornecedorPage() {
     telefone: "",
   });
   const [loading, setLoading] = useState(false);
-
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [fornecedorEdit, setFornecedorEdit] = useState(null);
-
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fornecedorDelete, setFornecedorDelete] = useState(null);
 
-  // Função para tratar erro 401 (token inválido)
   const handleUnauthorized = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
   };
 
-  const fetchFornecedores = () => {
+  const fetchFornecedores = async () => {
     setLoading(true);
-    fetch("http://localhost:3001/fornecedores", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-    })
-      .then((r) => {
-        if (r.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-        if (!r.ok) throw new Error("Erro ao buscar fornecedores");
-        return r.json();
-      })
-      .then(setFornecedores)
-      .catch((err) => {
-        alert(err.message);
+    try {
+      const res = await api.get("/fornecedores");
+      setFornecedores(res.data);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleUnauthorized();
+      } else {
+        alert("Erro ao buscar fornecedores");
         console.error(err);
-      })
-      .finally(() => setLoading(false));
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -76,43 +68,30 @@ export default function FornecedorPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.nome.trim() || !form.cnpj.trim()) {
       alert("Nome e CNPJ são obrigatórios");
       return;
     }
 
-    fetch("http://localhost:3001/fornecedores", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-      body: JSON.stringify({
+    try {
+      await api.post("/fornecedores", {
         nome: form.nome.trim(),
         cnpj: form.cnpj.trim(),
         email: form.email.trim(),
         telefone: form.telefone.trim(),
-      }),
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-        if (!res.ok) throw new Error("Erro ao cadastrar fornecedor");
-        return res.json();
-      })
-      .then(() => {
-        setForm({ nome: "", cnpj: "", email: "", telefone: "" });
-        fetchFornecedores();
-      })
-      .catch((err) => {
-        alert(err.message);
-        console.error(err);
       });
+      setForm({ nome: "", cnpj: "", email: "", telefone: "" });
+      fetchFornecedores();
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleUnauthorized();
+      } else {
+        alert("Erro ao cadastrar fornecedor");
+        console.error(err);
+      }
+    }
   };
 
   const openEditDialog = (fornecedor) => {
@@ -125,41 +104,29 @@ export default function FornecedorPage() {
     setFornecedorEdit(null);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!fornecedorEdit?.nome.trim() || !fornecedorEdit?.cnpj.trim()) {
       alert("Nome e CNPJ são obrigatórios");
       return;
     }
 
-    fetch(`http://localhost:3001/fornecedores/${fornecedorEdit.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-      body: JSON.stringify({
+    try {
+      await api.put(`/fornecedores/${fornecedorEdit.id}`, {
         nome: fornecedorEdit.nome.trim(),
         cnpj: fornecedorEdit.cnpj.trim(),
         email: fornecedorEdit.email?.trim() || "",
         telefone: fornecedorEdit.telefone?.trim() || "",
-      }),
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-        if (!res.ok) throw new Error("Erro ao salvar fornecedor");
-        return res.json();
-      })
-      .then(() => {
-        handleCloseEditDialog();
-        fetchFornecedores();
-      })
-      .catch((err) => {
-        alert(err.message);
-        console.error(err);
       });
+      handleCloseEditDialog();
+      fetchFornecedores();
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleUnauthorized();
+      } else {
+        alert("Erro ao salvar fornecedor");
+        console.error(err);
+      }
+    }
   };
 
   const openDeleteDialog = (fornecedor) => {
@@ -172,26 +139,19 @@ export default function FornecedorPage() {
     setFornecedorDelete(null);
   };
 
-  const handleConfirmDelete = () => {
-    fetch(`http://localhost:3001/fornecedores/${fornecedorDelete.id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-        if (!res.ok) throw new Error("Erro ao deletar fornecedor");
-        handleCloseDeleteDialog();
-        fetchFornecedores();
-      })
-      .catch((err) => {
-        alert(err.message);
+  const handleConfirmDelete = async () => {
+    try {
+      await api.delete(`/fornecedores/${fornecedorDelete.id}`);
+      handleCloseDeleteDialog();
+      fetchFornecedores();
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleUnauthorized();
+      } else {
+        alert("Erro ao deletar fornecedor");
         console.error(err);
-      });
+      }
+    }
   };
 
   return (
@@ -259,39 +219,36 @@ export default function FornecedorPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {fornecedores.length === 0 && (
+              {fornecedores.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center">
                     Nenhum fornecedor cadastrado.
                   </TableCell>
                 </TableRow>
+              ) : (
+                fornecedores.map((fornecedor) => (
+                  <TableRow key={fornecedor.id}>
+                    <TableCell>{fornecedor.nome}</TableCell>
+                    <TableCell>{fornecedor.cnpj}</TableCell>
+                    <TableCell>{fornecedor.email || "-"}</TableCell>
+                    <TableCell>{fornecedor.telefone || "-"}</TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        color="primary"
+                        onClick={() => openEditDialog(fornecedor)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => openDeleteDialog(fornecedor)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-              {fornecedores.map((fornecedor) => (
-                <TableRow key={fornecedor.id}>
-                  <TableCell>{fornecedor.nome}</TableCell>
-                  <TableCell>{fornecedor.cnpj}</TableCell>
-                  <TableCell>{fornecedor.email || "-"}</TableCell>
-                  <TableCell>{fornecedor.telefone || "-"}</TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      color="primary"
-                      onClick={() => openEditDialog(fornecedor)}
-                      size="large"
-                      aria-label={`Editar ${fornecedor.nome}`}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => openDeleteDialog(fornecedor)}
-                      size="large"
-                      aria-label={`Deletar ${fornecedor.nome}`}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
             </TableBody>
           </Table>
         )}

@@ -6,6 +6,7 @@ import Drawer from "@mui/material/Drawer";
 import Container from "@mui/material/Container";
 
 import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer"; // Importa o Footer
 import NavigationDrawer from "./components/layout/NavigationDrawer";
 import AppRoutes from "./routes/AppRoutes";
 
@@ -20,60 +21,74 @@ export default function App() {
 
   return (
     <Router>
-      <Box sx={{ display: "flex" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+        }}
+      >
+        {/* Header fixo no topo */}
         <Header onMenuClick={handleDrawerToggle} />
 
-        <Box
-          component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-          aria-label="navigation drawers"
-        >
-          {/* Drawer mobile */}
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{ keepMounted: true }}
+        {/* Conteúdo principal + Drawer */}
+        <Box sx={{ display: "flex", flexGrow: 1 }}>
+          <Box
+            component="nav"
+            sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+            aria-label="navigation drawers"
+          >
+            {/* Drawer mobile */}
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{ keepMounted: true }}
+              sx={{
+                display: { xs: "block", sm: "none" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                },
+              }}
+            >
+              <NavigationDrawer />
+            </Drawer>
+
+            {/* Drawer desktop */}
+            <Drawer
+              variant="permanent"
+              sx={{
+                display: { xs: "none", sm: "block" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                },
+              }}
+              open
+            >
+              <NavigationDrawer />
+            </Drawer>
+          </Box>
+
+          {/* Área do conteúdo principal */}
+          <Box
+            component="main"
             sx={{
-              display: { xs: "block", sm: "none" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
+              flexGrow: 1,
+              p: 3,
+              width: { sm: `calc(100% - ${drawerWidth}px)` },
+              mt: 8,
             }}
           >
-            <NavigationDrawer />
-          </Drawer>
-
-          {/* Drawer desktop */}
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: "none", sm: "block" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
-            }}
-            open
-          >
-            <NavigationDrawer />
-          </Drawer>
+            <Container maxWidth="md">
+              <AppRoutes atualizar={atualizar} refresh={refresh} />
+            </Container>
+          </Box>
         </Box>
 
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 3,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            mt: 8,
-          }}
-        >
-          <Container maxWidth="md">
-            <AppRoutes atualizar={atualizar} refresh={refresh} />
-          </Container>
-        </Box>
+        {/* Footer fixo no final da página */}
+        <Footer />
       </Box>
     </Router>
   );

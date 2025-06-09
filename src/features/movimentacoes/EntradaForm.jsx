@@ -12,6 +12,7 @@ const EntradaForm = () => {
   const [produtos, setProdutos] = useState([]);
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
+  const [observacao, setObservacao] = useState(""); // novo estado para observação
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -24,7 +25,7 @@ const EntradaForm = () => {
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem("token");
-          window.location.href = "/login"; // redireciona para login se token inválido
+          window.location.href = "/login";
           return;
         }
         if (!res.ok) throw new Error("Erro ao carregar produtos.");
@@ -60,12 +61,13 @@ const EntradaForm = () => {
         },
         body: JSON.stringify({
           quantidade: Number(quantidade),
+          observacao, // enviar observação no corpo da requisição
         }),
       });
 
       if (resp.status === 401) {
         localStorage.removeItem("token");
-        window.location.href = "/login"; // redireciona para login se token inválido
+        window.location.href = "/login";
         return;
       }
 
@@ -78,6 +80,7 @@ const EntradaForm = () => {
       setSuccess("Entrada registrada com sucesso!");
       setProdutoId("");
       setQuantidade("");
+      setObservacao(""); // limpar campo observação
     } catch (err) {
       setError(err.message || "Falha ao registrar entrada.");
     }
@@ -125,6 +128,17 @@ const EntradaForm = () => {
           margin="normal"
           required
           inputProps={{ min: 1 }}
+        />
+
+        <TextField
+          fullWidth
+          label="Observação"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+          margin="normal"
+          multiline
+          rows={2}
+          placeholder="Ex: Produto recebido com nota fiscal XYZ..."
         />
 
         <Button variant="contained" type="submit" fullWidth sx={{ mt: 2 }}>
