@@ -3,40 +3,70 @@ import axios from "axios";
 import {
   Box,
   Typography,
-  Alert,
   CircularProgress,
+  Alert,
+  Paper,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
   TableContainer,
-  Paper,
+  TextField,
+  TablePagination,
 } from "@mui/material";
 
 function MovimentacaoHistorico() {
   const [movimentacoes, setMovimentacoes] = useState([]);
-  const [loadingMov, setLoadingMov] = useState(true);
-  const [errorMov, setErrorMov] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filtroTexto, setFiltroTexto] = useState("");
+  const [pagina, setPagina] = useState(0);
+  const [linhasPorPagina, setLinhasPorPagina] = useState(5);
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    setLoadingMov(true);
-    setErrorMov("");
+    setLoading(true);
+    setError("");
     axios
       .get("http://localhost:3001/movimentacoes", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
         setMovimentacoes(res.data);
-        setLoadingMov(false);
+        setLoading(false);
       })
       .catch(() => {
-        setErrorMov("Erro ao carregar movimentações.");
-        setLoadingMov(false);
+        setError("Erro ao carregar movimentações.");
+        setLoading(false);
       });
   }, [token]);
+
+  // Filtra pela barra de pesquisa: procura no nome do produto, tipo ou observação
+  const movimentacoesFiltradas = movimentacoes.filter((mov) => {
+    const termo = filtroTexto.toLowerCase();
+    return (
+      mov.produto?.nome?.toLowerCase().includes(termo) ||
+      mov.tipo?.toLowerCase().includes(termo) ||
+      mov.observacao?.toLowerCase().includes(termo)
+    );
+  });
+
+  // Paginação
+  const movimentacoesPaginadas = movimentacoesFiltradas.slice(
+    pagina * linhasPorPagina,
+    pagina * linhasPorPagina + linhasPorPagina
+  );
+
+  const handleChangePage = (event, novaPagina) => {
+    setPagina(novaPagina);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setLinhasPorPagina(parseInt(event.target.value, 10));
+    setPagina(0);
+  };
 
   return (
     <Box maxWidth={900} mx="auto" mt={4}>
@@ -44,68 +74,102 @@ function MovimentacaoHistorico() {
         Histórico de Movimentações
       </Typography>
 
-      {loadingMov && (
+      {loading && (
         <Box textAlign="center" mt={2}>
           <CircularProgress />
           <Typography mt={2}>Carregando movimentações...</Typography>
         </Box>
       )}
 
-      {errorMov && (
+      {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {errorMov}
+          {error}
         </Alert>
       )}
 
-      {!loadingMov && movimentacoes.length === 0 && (
+      {!loading && movimentacoes.length === 0 && (
         <Typography mt={2} textAlign="center">
           Nenhuma movimentação registrada.
         </Typography>
       )}
 
-      {!loadingMov && movimentacoes.length > 0 && (
-        <TableContainer component={Paper} sx={{ mb: 4 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <strong>Produto</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Tipo</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Quantidade</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Data</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Observação</strong>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {movimentacoes.map((mov) => (
-                <TableRow key={mov.id}>
-                  <TableCell>{mov.produto_nome || mov.produto_id}</TableCell>
-                  <TableCell>{mov.tipo}</TableCell>
-                  <TableCell>{mov.quantidade}</TableCell>
+      {!loading && movimentacoes.length > 0 && (
+        <>
+          <TextField
+            label="Pesquisar"
+            variant="outlined"
+            value={filtroTexto}
+            onChange={(e) => {
+              setFiltroTexto(e.target.value);
+              setPagina(0); // volta para página 0 ao pesquisar
+            }}
+            placeholder="Nome, tipo ou observação"
+            fullWidth
+            margin="normal"
+          />
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
                   <TableCell>
-                    {new Date(mov.data).toLocaleString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    <strong>Produto</strong>
                   </TableCell>
-                  <TableCell>{mov.observacao || "-"}</TableCell>
+                  <TableCell>
+                    <strong>Tipo</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Quantidade</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Data</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Observação</strong>
+                  </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {movimentacoesPaginadas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      Nenhuma movimentação encontrada.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  movimentacoesPaginadas.map((mov) => (
+                    <TableRow key={mov.id}>
+                      <TableCell>{mov.produto?.nome || "Sem nome"}</TableCell>
+                      <TableCell>{mov.tipo}</TableCell>
+                      <TableCell>{mov.quantidade}</TableCell>
+                      <TableCell>
+                        {new Date(mov.data_movimento).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>{mov.observacao || "-"}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={movimentacoesFiltradas.length}
+            page={pagina}
+            onPageChange={handleChangePage}
+            rowsPerPage={linhasPorPagina}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+            labelRowsPerPage="Linhas por página"
+          />
+        </>
       )}
     </Box>
   );
