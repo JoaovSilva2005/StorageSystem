@@ -6,13 +6,14 @@ import {
   Typography,
   MenuItem,
   Alert,
+  Paper,
 } from "@mui/material";
 
 const EntradaForm = () => {
   const [produtos, setProdutos] = useState([]);
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
-  const [observacao, setObservacao] = useState(""); // novo estado para observação
+  const [observacao, setObservacao] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -40,30 +41,26 @@ const EntradaForm = () => {
     setError("");
     setSuccess("");
 
-    if (!produtoId || !quantidade) {
-      setError("Produto e quantidade são obrigatórios.");
-      return;
-    }
-
-    if (quantidade <= 0) {
-      setError("Quantidade deve ser maior que zero.");
+    if (!produtoId || !quantidade || quantidade <= 0) {
+      setError("Selecione um produto e informe uma quantidade válida.");
       return;
     }
 
     try {
-      const url = `http://localhost:3001/produtos/${produtoId}/entrada`;
-
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-        body: JSON.stringify({
-          quantidade: Number(quantidade),
-          observacao, // enviar observação no corpo da requisição
-        }),
-      });
+      const resp = await fetch(
+        `http://localhost:3001/produtos/${produtoId}/entrada`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          },
+          body: JSON.stringify({
+            quantidade: Number(quantidade),
+            observacao,
+          }),
+        }
+      );
 
       if (resp.status === 401) {
         localStorage.removeItem("token");
@@ -72,25 +69,32 @@ const EntradaForm = () => {
       }
 
       const data = await resp.json();
-
-      if (!resp.ok) {
-        throw new Error(data.error || "Erro no servidor");
-      }
+      if (!resp.ok) throw new Error(data.error || "Erro no servidor");
 
       setSuccess("Entrada registrada com sucesso!");
       setProdutoId("");
       setQuantidade("");
-      setObservacao(""); // limpar campo observação
+      setObservacao("");
     } catch (err) {
       setError(err.message || "Falha ao registrar entrada.");
     }
   };
 
   return (
-    <Box maxWidth={400} mx="auto">
-      <Typography variant="h5" mb={2}>
+    <Paper
+      sx={{
+        maxWidth: 500,
+        mx: "auto",
+        mt: 4,
+        p: 4,
+        borderRadius: 3,
+        boxShadow: 4,
+      }}
+    >
+      <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
         Registrar Entrada de Produto
       </Typography>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -137,15 +141,21 @@ const EntradaForm = () => {
           onChange={(e) => setObservacao(e.target.value)}
           margin="normal"
           multiline
-          rows={2}
-          placeholder="Ex: Produto recebido com nota fiscal XYZ..."
+          rows={3}
+          placeholder="Ex: Recebido com nota fiscal XYZ..."
         />
 
-        <Button variant="contained" type="submit" fullWidth sx={{ mt: 2 }}>
+        <Button
+          variant="contained"
+          color="primary"
+          type="submit"
+          fullWidth
+          sx={{ mt: 3, py: 1.5, fontWeight: "bold" }}
+        >
           Registrar Entrada
         </Button>
       </form>
-    </Box>
+    </Paper>
   );
 };
 

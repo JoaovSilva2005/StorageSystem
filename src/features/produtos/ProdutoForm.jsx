@@ -12,6 +12,9 @@ import {
   Button,
   CircularProgress,
   Stack,
+  Divider,
+  Alert,
+  Collapse,
 } from "@mui/material";
 import api from "../../services/api";
 
@@ -29,11 +32,13 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
   const [loadingC, setLoadingC] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [formErrors, setFormErrors] = useState({});
+
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
+    if (!token) navigate("/login");
   }, [navigate]);
 
   useEffect(() => {
@@ -58,9 +63,30 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
       .finally(() => setLoadingC(false));
   }, []);
 
+  const validateForm = () => {
+    const errors = {};
+
+    if (!nome.trim()) errors.nome = "O nome do produto é obrigatório";
+    if (!quantidade || isNaN(quantidade) || Number(quantidade) < 1)
+      errors.quantidade = "Informe uma quantidade válida (mínimo 1)";
+    if (!preco || isNaN(preco) || Number(preco) <= 0)
+      errors.preco = "Informe um preço válido (maior que 0)";
+    if (!fornecedorId) errors.fornecedorId = "Selecione um fornecedor";
+    if (!categoriaId) errors.categoriaId = "Selecione uma categoria";
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSuccessMessage("");
+    setErrorMessage("");
+
+    if (!validateForm()) return;
+
     setSubmitting(true);
+
     try {
       await api.post("/produtos", {
         nome,
@@ -69,13 +95,18 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
         fornecedorId,
         categoriaId,
       });
+
+      setSuccessMessage("Produto cadastrado com sucesso!");
       onProdutoAdicionado();
+
       setNome("");
       setQuantidade("");
       setPreco("");
+      setFormErrors({});
+      setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
-      // Aqui você pode adicionar tratamento de erro se quiser
-      console.error("Erro ao adicionar produto:", error);
+      setErrorMessage("Erro ao cadastrar produto. Verifique os dados.");
+      setTimeout(() => setErrorMessage(""), 4000);
     } finally {
       setSubmitting(false);
     }
@@ -83,132 +114,144 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
 
   return (
     <Paper
+      elevation={4}
       sx={{
-        p: 4,
-        maxWidth: 600,
+        p: 5,
+        maxWidth: 650,
         mx: "auto",
-        mt: 4,
-        borderRadius: 2,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        mt: 5,
+        borderRadius: 3,
+        background: "#ffffff",
+        boxShadow: "0 6px 16px rgba(0, 0, 0, 0.08)",
       }}
-      elevation={3}
     >
-      <Typography
-        variant="h5"
-        gutterBottom
-        sx={{ fontWeight: "bold", mb: 3, color: "primary.main" }}
-      >
-        Cadastrar Produto
+      <Typography variant="h4" fontWeight="bold" color="primary" mb={2}>
+        Novo Produto
+      </Typography>
+      <Typography variant="body1" color="text.secondary" mb={3}>
+        Preencha as informações abaixo para cadastrar um novo produto no
+        sistema.
       </Typography>
 
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        noValidate
-        sx={{ cursor: submitting ? "wait" : "default" }}
-      >
+      <Divider sx={{ mb: 3 }} />
+
+      <Collapse in={!!successMessage || !!errorMessage}>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {errorMessage}
+          </Alert>
+        )}
+      </Collapse>
+
+      <Box component="form" onSubmit={handleSubmit} noValidate>
         <Stack spacing={3}>
           <TextField
-            fullWidth
-            label="Nome"
+            label="Nome do Produto"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
+            fullWidth
             required
             disabled={submitting}
-            sx={{
-              "& .MuiInputBase-root": {
-                backgroundColor: "#f9f9f9",
-                borderRadius: 1,
-              },
-              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
-                borderColor: "primary.main",
-              },
-            }}
+            error={!!formErrors.nome}
+            helperText={formErrors.nome}
           />
 
           <TextField
-            fullWidth
             label="Quantidade"
             type="number"
             value={quantidade}
             onChange={(e) => setQuantidade(e.target.value)}
-            inputProps={{ min: 0 }}
+            fullWidth
             required
+            inputProps={{ min: 1 }}
             disabled={submitting}
-            sx={{
-              "& .MuiInputBase-root": {
-                backgroundColor: "#f9f9f9",
-                borderRadius: 1,
-              },
-              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
-                borderColor: "primary.main",
-              },
-            }}
+            error={!!formErrors.quantidade}
+            helperText={formErrors.quantidade}
           />
 
           <TextField
-            fullWidth
             label="Preço (R$)"
             type="number"
             value={preco}
             onChange={(e) => setPreco(e.target.value)}
-            inputProps={{ step: 0.01, min: 0 }}
+            fullWidth
             required
+            inputProps={{ step: 0.01, min: 0.01 }}
             disabled={submitting}
-            sx={{
-              "& .MuiInputBase-root": {
-                backgroundColor: "#f9f9f9",
-                borderRadius: 1,
-              },
-              "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
-                borderColor: "primary.main",
-              },
-            }}
+            error={!!formErrors.preco}
+            helperText={formErrors.preco}
           />
 
-          <FormControl fullWidth disabled={loadingF || submitting}>
+          <FormControl
+            fullWidth
+            disabled={loadingF || submitting}
+            error={!!formErrors.fornecedorId}
+          >
             <InputLabel>Fornecedor</InputLabel>
             {loadingF ? (
               <Box display="flex" justifyContent="center" py={1}>
-                <CircularProgress size={28} />
+                <CircularProgress size={24} />
               </Box>
             ) : (
-              <Select
-                value={fornecedorId}
-                label="Fornecedor"
-                onChange={(e) => setFornecedorId(e.target.value)}
-              >
-                {fornecedores.map((f) => (
-                  <MenuItem key={f.id} value={f.id}>
-                    {f.nome}
-                  </MenuItem>
-                ))}
-              </Select>
+              <>
+                <Select
+                  value={fornecedorId}
+                  label="Fornecedor"
+                  onChange={(e) => setFornecedorId(e.target.value)}
+                >
+                  {fornecedores.map((f) => (
+                    <MenuItem key={f.id} value={f.id}>
+                      {f.nome}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formErrors.fornecedorId && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.fornecedorId}
+                  </Typography>
+                )}
+              </>
             )}
           </FormControl>
 
-          <FormControl fullWidth disabled={loadingC || submitting}>
+          <FormControl
+            fullWidth
+            disabled={loadingC || submitting}
+            error={!!formErrors.categoriaId}
+          >
             <InputLabel>Categoria</InputLabel>
             {loadingC ? (
               <Box display="flex" justifyContent="center" py={1}>
-                <CircularProgress size={28} />
+                <CircularProgress size={24} />
               </Box>
             ) : (
-              <Select
-                value={categoriaId}
-                label="Categoria"
-                onChange={(e) => setCategoriaId(e.target.value)}
-              >
-                {categorias.map((c) => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </MenuItem>
-                ))}
-              </Select>
+              <>
+                <Select
+                  value={categoriaId}
+                  label="Categoria"
+                  onChange={(e) => setCategoriaId(e.target.value)}
+                >
+                  {categorias.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formErrors.categoriaId && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.categoriaId}
+                  </Typography>
+                )}
+              </>
             )}
           </FormControl>
 
-          <Box display="flex" justifyContent="flex-end">
+          <Box display="flex" justifyContent="flex-end" mt={2}>
             <Button
               type="submit"
               variant="contained"
@@ -221,9 +264,11 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
                 textTransform: "none",
                 fontWeight: "bold",
                 px: 4,
+                py: 1.5,
+                borderRadius: 2,
               }}
             >
-              {submitting ? "Adicionando..." : "Adicionar"}
+              {submitting ? "Adicionando..." : "Adicionar Produto"}
             </Button>
           </Box>
         </Stack>

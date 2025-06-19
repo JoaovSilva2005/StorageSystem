@@ -17,13 +17,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  useTheme,
 } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import api from "../../services/api"; // ajuste o caminho conforme a estrutura do seu projeto
+import api from "../../services/api";
 
 export default function FornecedorPage() {
+  const theme = useTheme();
+
   const [fornecedores, setFornecedores] = useState([]);
   const [form, setForm] = useState({
     nome: "",
@@ -36,6 +39,7 @@ export default function FornecedorPage() {
   const [fornecedorEdit, setFornecedorEdit] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fornecedorDelete, setFornecedorDelete] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleUnauthorized = () => {
     localStorage.removeItem("token");
@@ -154,21 +158,53 @@ export default function FornecedorPage() {
     }
   };
 
+  // Filtra fornecedores pelo nome com base no termo de busca
+  const fornecedoresFiltrados = fornecedores.filter((f) =>
+    f.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <Stack spacing={4} sx={{ maxWidth: 700, mx: "auto", py: 3 }}>
+    <Stack
+      spacing={5}
+      sx={{
+        maxWidth: 720,
+        mx: "auto",
+        py: 4,
+        px: 2,
+      }}
+    >
+      <Typography
+        variant="h4"
+        align="center"
+        fontWeight="700"
+        color={theme.palette.primary.main}
+        gutterBottom
+      >
+        Gestão de Fornecedores
+      </Typography>
+
       {/* Cadastro */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper
+        sx={{
+          p: 4,
+          boxShadow: theme.shadows[3],
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <Typography variant="h6" fontWeight="600" mb={3}>
           Cadastro de Fornecedor
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate>
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <TextField
               label="Nome"
               name="nome"
               value={form.nome}
               onChange={handleInputChange}
               required
+              fullWidth
+              autoFocus
             />
             <TextField
               label="CNPJ"
@@ -177,6 +213,7 @@ export default function FornecedorPage() {
               onChange={handleInputChange}
               required
               placeholder="00.000.000/0000-00"
+              fullWidth
             />
             <TextField
               label="Email"
@@ -184,33 +221,77 @@ export default function FornecedorPage() {
               value={form.email}
               onChange={handleInputChange}
               type="email"
+              fullWidth
             />
             <TextField
               label="Telefone"
               name="telefone"
               value={form.telefone}
               onChange={handleInputChange}
+              fullWidth
             />
-            <Button variant="contained" type="submit">
+            <Button
+              variant="contained"
+              type="submit"
+              size="large"
+              sx={{ mt: 2, fontWeight: 600 }}
+            >
               Cadastrar
             </Button>
           </Stack>
         </Box>
       </Paper>
 
+      {/* Pesquisa */}
+      <TextField
+        label="Pesquisar fornecedores"
+        variant="outlined"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        fullWidth
+        size="small"
+        sx={{ mb: 2 }}
+        placeholder="Buscar por nome"
+      />
+
       {/* Lista */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper
+        sx={{
+          p: 3,
+          boxShadow: theme.shadows[3],
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <Typography variant="h6" fontWeight="600" mb={3}>
           Fornecedores Cadastrados
         </Typography>
         {loading ? (
-          <Box textAlign="center" py={2}>
+          <Box textAlign="center" py={4}>
             <CircularProgress />
           </Box>
         ) : (
-          <Table size="small" sx={{ wordBreak: "break-word" }}>
+          <Table
+            size="small"
+            sx={{
+              wordBreak: "break-word",
+              borderCollapse: "separate",
+              borderSpacing: "0 8px",
+            }}
+          >
             <TableHead>
-              <TableRow>
+              <TableRow
+                sx={{
+                  backgroundColor: theme.palette.primary.main,
+                  "& th": {
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    paddingY: 1.5,
+                    borderRadius: 1,
+                  },
+                }}
+              >
                 <TableCell>Nome</TableCell>
                 <TableCell>CNPJ</TableCell>
                 <TableCell>Email</TableCell>
@@ -219,29 +300,47 @@ export default function FornecedorPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {fornecedores.length === 0 ? (
+              {fornecedoresFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    Nenhum fornecedor cadastrado.
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    Nenhum fornecedor encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                fornecedores.map((fornecedor) => (
-                  <TableRow key={fornecedor.id}>
-                    <TableCell>{fornecedor.nome}</TableCell>
+                fornecedoresFiltrados.map((fornecedor) => (
+                  <TableRow
+                    key={fornecedor.id}
+                    sx={{
+                      backgroundColor: "#f9f9f9",
+                      "&:hover": {
+                        backgroundColor: "#e0e0e0",
+                      },
+                      borderRadius: 1,
+                      "& td": {
+                        borderBottom: "none",
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      {fornecedor.nome}
+                    </TableCell>
                     <TableCell>{fornecedor.cnpj}</TableCell>
                     <TableCell>{fornecedor.email || "-"}</TableCell>
                     <TableCell>{fornecedor.telefone || "-"}</TableCell>
                     <TableCell align="right">
                       <IconButton
                         color="primary"
+                        aria-label="editar"
                         onClick={() => openEditDialog(fornecedor)}
+                        size="large"
                       >
                         <EditIcon />
                       </IconButton>
                       <IconButton
                         color="error"
+                        aria-label="excluir"
                         onClick={() => openDeleteDialog(fornecedor)}
+                        size="large"
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -255,10 +354,15 @@ export default function FornecedorPage() {
       </Paper>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog}>
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleCloseEditDialog}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Editar Fornecedor</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1, minWidth: 300 }}>
+        <DialogContent dividers>
+          <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
               label="Nome"
               name="nome"
@@ -267,6 +371,8 @@ export default function FornecedorPage() {
                 setFornecedorEdit((prev) => ({ ...prev, nome: e.target.value }))
               }
               required
+              fullWidth
+              autoFocus
             />
             <TextField
               label="CNPJ"
@@ -276,6 +382,7 @@ export default function FornecedorPage() {
                 setFornecedorEdit((prev) => ({ ...prev, cnpj: e.target.value }))
               }
               required
+              fullWidth
             />
             <TextField
               label="Email"
@@ -288,6 +395,7 @@ export default function FornecedorPage() {
                   email: e.target.value,
                 }))
               }
+              fullWidth
             />
             <TextField
               label="Telefone"
@@ -299,10 +407,11 @@ export default function FornecedorPage() {
                   telefone: e.target.value,
                 }))
               }
+              fullWidth
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseEditDialog}>Cancelar</Button>
           <Button variant="contained" onClick={handleSaveEdit}>
             Salvar
@@ -311,13 +420,18 @@ export default function FornecedorPage() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Confirmar Exclusão</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           Tem certeza que deseja excluir o fornecedor{" "}
           <strong>{fornecedorDelete?.nome}</strong>?
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button
             variant="contained"

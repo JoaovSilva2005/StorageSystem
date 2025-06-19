@@ -17,14 +17,14 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  useTheme,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-// --------------------------------------------------
-// CategoriaPage
-// --------------------------------------------------
 export default function CategoriaPage() {
+  const theme = useTheme();
+
   const [categorias, setCategorias] = useState([]);
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(false);
@@ -151,22 +151,61 @@ export default function CategoriaPage() {
   };
 
   return (
-    <Stack spacing={4} sx={{ maxWidth: 600, mx: "auto", py: 3 }}>
+    <Stack
+      spacing={5}
+      sx={{
+        maxWidth: 650,
+        mx: "auto",
+        py: 4,
+        px: 2,
+        bgcolor: theme.palette.background.default,
+      }}
+    >
+      <Typography
+        variant="h4"
+        align="center"
+        fontWeight="700"
+        color={theme.palette.primary.main}
+        gutterBottom
+      >
+        Gestão de Categorias
+      </Typography>
+
       {/* Cadastro */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper
+        elevation={4}
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          bgcolor: theme.palette.background.paper,
+          boxShadow: theme.shadows[3],
+        }}
+      >
+        <Typography variant="h6" fontWeight="600" mb={3}>
           Cadastro de Categoria
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate>
-          <Stack direction="row" spacing={2}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               fullWidth
               label="Nome da Categoria"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               required
+              autoFocus
+              sx={{ flex: 1 }}
             />
-            <Button variant="contained" type="submit">
+            <Button
+              variant="contained"
+              type="submit"
+              sx={{
+                minWidth: { xs: "100%", sm: 130 },
+                fontWeight: 600,
+                py: 1.5,
+                mt: { xs: 1, sm: 0 },
+              }}
+              size="large"
+            >
               Cadastrar
             </Button>
           </Stack>
@@ -174,16 +213,52 @@ export default function CategoriaPage() {
       </Paper>
 
       {/* Lista */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper
+        elevation={4}
+        sx={{
+          p: 3,
+          borderRadius: 3,
+          bgcolor: theme.palette.background.paper,
+          boxShadow: theme.shadows[3],
+        }}
+      >
+        <Typography variant="h6" fontWeight="600" mb={3}>
           Categorias Cadastradas
         </Typography>
+
         {loading ? (
-          <Box textAlign="center" py={2}>
+          <Box textAlign="center" py={4}>
             <CircularProgress />
           </Box>
         ) : (
-          <Table size="small">
+          <Table
+            size="small"
+            sx={{
+              borderCollapse: "separate",
+              borderSpacing: "0 10px",
+              "& thead th": {
+                bgcolor: theme.palette.primary.main,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+                borderRadius: 1,
+                paddingY: 1.5,
+              },
+              "& tbody tr": {
+                bgcolor: "#fefefe",
+                boxShadow: "0px 1px 4px rgba(0,0,0,0.1)",
+                borderRadius: 2,
+                transition: "background-color 0.3s",
+                "&:hover": {
+                  bgcolor: "#f1f1f1",
+                },
+              },
+              "& tbody td": {
+                borderBottom: "none",
+                paddingY: 1.5,
+              },
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell>Nome</TableCell>
@@ -193,19 +268,22 @@ export default function CategoriaPage() {
             <TableBody>
               {categorias.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={2} align="center">
+                  <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
                     Nenhuma categoria cadastrada.
                   </TableCell>
                 </TableRow>
               )}
               {categorias.map((categoria) => (
                 <TableRow key={categoria.id}>
-                  <TableCell>{categoria.nome}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>
+                    {categoria.nome}
+                  </TableCell>
                   <TableCell align="right">
                     <IconButton
                       color="primary"
                       onClick={() => openEditDialog(categoria)}
                       size="small"
+                      aria-label="Editar categoria"
                     >
                       <EditIcon />
                     </IconButton>
@@ -213,6 +291,7 @@ export default function CategoriaPage() {
                       color="error"
                       onClick={() => openDeleteDialog(categoria)}
                       size="small"
+                      aria-label="Excluir categoria"
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -225,9 +304,14 @@ export default function CategoriaPage() {
       </Paper>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog}>
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleCloseEditDialog}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Editar Categoria</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <TextField
             autoFocus
             margin="dense"
@@ -237,24 +321,30 @@ export default function CategoriaPage() {
             onChange={(e) =>
               setCategoriaEdit({ ...categoriaEdit, nome: e.target.value })
             }
+            sx={{ mt: 1 }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseEditDialog}>Cancelar</Button>
-          <Button onClick={handleSaveEdit} variant="contained">
+          <Button variant="contained" onClick={handleSaveEdit}>
             Salvar
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Confirmar exclusão</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           Deseja realmente excluir a categoria{" "}
           <strong>{categoriaDelete?.nome}</strong>?
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button
             onClick={handleConfirmDelete}

@@ -1,14 +1,31 @@
 import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  CircularProgress,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TextField,
+  useTheme,
+} from "@mui/material";
 
 const DashboardPage = () => {
+  const theme = useTheme();
+
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filtroTexto, setFiltroTexto] = useState("");
 
-  const token = localStorage.getItem("token"); // ou outro local onde você armazena o token JWT
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     if (!token) {
@@ -58,8 +75,49 @@ const DashboardPage = () => {
     fetchData();
   }, [token]);
 
-  if (loading) return <p>Carregando dashboard...</p>;
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (loading)
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="60vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+
+  if (error)
+    return (
+      <Box textAlign="center" mt={4}>
+        <Typography variant="h6" color="error">
+          {error}
+        </Typography>
+      </Box>
+    );
+
+  // Função para formatar data para string comparável
+  const formatarData = (data) =>
+    new Date(data).toLocaleDateString("pt-BR") +
+    " " +
+    new Date(data).toLocaleTimeString("pt-BR");
+
+  // Filtra movimentações conforme filtroTexto
+  const movimentacoesFiltradas = movimentacoes.filter((mov) => {
+    const termo = filtroTexto.toLowerCase();
+
+    // Quantidade e data como string
+    const quantidadeStr = mov.quantidade.toString();
+    const dataStr = formatarData(mov.data_movimento).toLowerCase();
+
+    return (
+      mov.produto.nome.toLowerCase().includes(termo) ||
+      mov.tipo.toLowerCase().includes(termo) ||
+      quantidadeStr.includes(termo) ||
+      dataStr.includes(termo) ||
+      (mov.observacao || "").toLowerCase().includes(termo)
+    );
+  });
 
   const totalProdutos = produtos.length;
   const totalCategorias = categorias.length;
@@ -70,129 +128,113 @@ const DashboardPage = () => {
   );
 
   return (
-    <div
-      style={{
-        maxWidth: 900,
-        margin: "20px auto",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <h1>Dashboard do Estoque</h1>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          marginBottom: 30,
-        }}
+    <Box maxWidth={1000} mx="auto" p={3}>
+      <Typography
+        variant="h4"
+        gutterBottom
+        align="center"
+        color={theme.palette.primary.main}
+        fontWeight={700}
       >
-        <div
-          style={{
-            padding: 20,
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            width: "22%",
-          }}
-        >
-          <h3>Total de Produtos</h3>
-          <p style={{ fontSize: 24, fontWeight: "bold" }}>{totalProdutos}</p>
-        </div>
+        Dashboard do Estoque
+      </Typography>
 
-        <div
-          style={{
-            padding: 20,
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            width: "22%",
-          }}
-        >
-          <h3>Valor Total em Estoque</h3>
-          <p style={{ fontSize: 24, fontWeight: "bold" }}>
-            R$ {valorTotalEstoque.toFixed(2).replace(".", ",")}
-          </p>
-        </div>
+      <Grid container spacing={3} mb={4}>
+        {[
+          {
+            title: "Total de Produtos",
+            value: totalProdutos,
+          },
+          {
+            title: "Valor Total em Estoque",
+            value: `R$ ${valorTotalEstoque.toFixed(2).replace(".", ",")}`,
+          },
+          {
+            title: "Categorias",
+            value: totalCategorias,
+          },
+          {
+            title: "Fornecedores",
+            value: totalFornecedores,
+          },
+        ].map((card) => (
+          <Grid item xs={12} sm={6} md={3} key={card.title}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                textAlign: "center",
+                backgroundColor: theme.palette.background.paper,
+                boxShadow: theme.shadows[4],
+                transition: "transform 0.2s",
+                "&:hover": { transform: "scale(1.05)" },
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                {card.title}
+              </Typography>
+              <Typography variant="h5" fontWeight={700} color="primary">
+                {card.value}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
 
-        <div
-          style={{
-            padding: 20,
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            width: "22%",
-          }}
-        >
-          <h3>Categorias</h3>
-          <p style={{ fontSize: 24, fontWeight: "bold" }}>{totalCategorias}</p>
-        </div>
+      <Typography variant="h5" mb={2}>
+        Últimas Movimentações
+      </Typography>
 
-        <div
-          style={{
-            padding: 20,
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            width: "22%",
-          }}
-        >
-          <h3>Fornecedores</h3>
-          <p style={{ fontSize: 24, fontWeight: "bold" }}>
-            {totalFornecedores}
-          </p>
-        </div>
-      </div>
+      <TextField
+        variant="outlined"
+        fullWidth
+        placeholder="Pesquisar movimentações (produto, tipo, quantidade, data, observação)"
+        value={filtroTexto}
+        onChange={(e) => setFiltroTexto(e.target.value)}
+        sx={{ mb: 2 }}
+      />
 
-      <h2>Últimas Movimentações</h2>
-      {movimentacoes.length === 0 ? (
-        <p>Nenhuma movimentação registrada.</p>
+      {movimentacoesFiltradas.length === 0 ? (
+        <Typography>Nenhuma movimentação encontrada.</Typography>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ borderBottom: "1px solid #ddd", padding: 8 }}>
-                Produto
-              </th>
-              <th style={{ borderBottom: "1px solid #ddd", padding: 8 }}>
-                Tipo
-              </th>
-              <th style={{ borderBottom: "1px solid #ddd", padding: 8 }}>
-                Quantidade
-              </th>
-              <th style={{ borderBottom: "1px solid #ddd", padding: 8 }}>
-                Data
-              </th>
-              <th style={{ borderBottom: "1px solid #ddd", padding: 8 }}>
-                Observação
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {movimentacoes.slice(0, 10).map((mov) => (
-              <tr key={mov.id}>
-                <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                  {mov.produto.nome}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #eee",
-                    padding: 8,
-                    textTransform: "capitalize",
-                  }}
+        <Paper elevation={3} sx={{ overflowX: "auto" }}>
+          <Table sx={{ minWidth: 650 }} aria-label="Últimas movimentações">
+            <TableHead
+              sx={{
+                backgroundColor: theme.palette.primary.main,
+                "& th": { color: "white", fontWeight: "bold" },
+              }}
+            >
+              <TableRow>
+                <TableCell>Produto</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Quantidade</TableCell>
+                <TableCell>Data</TableCell>
+                <TableCell>Observação</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {movimentacoesFiltradas.slice(0, 10).map((mov) => (
+                <TableRow
+                  key={mov.id}
+                  hover
+                  sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                 >
-                  {mov.tipo}
-                </td>
-                <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                  {mov.quantidade}
-                </td>
-                <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                  {new Date(mov.data_movimento).toLocaleString("pt-BR")}
-                </td>
-                <td style={{ borderBottom: "1px solid #eee", padding: 8 }}>
-                  {mov.observacao || "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <TableCell>{mov.produto.nome}</TableCell>
+                  <TableCell sx={{ textTransform: "capitalize" }}>
+                    {mov.tipo}
+                  </TableCell>
+                  <TableCell>{mov.quantidade}</TableCell>
+                  <TableCell>{formatarData(mov.data_movimento)}</TableCell>
+                  <TableCell>{mov.observacao || "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

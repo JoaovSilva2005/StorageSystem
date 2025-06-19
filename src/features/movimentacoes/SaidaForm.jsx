@@ -6,13 +6,15 @@ import {
   Typography,
   MenuItem,
   Alert,
+  Paper,
+  CircularProgress,
 } from "@mui/material";
 
 const SaidaForm = () => {
   const [produtos, setProdutos] = useState([]);
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
-  const [observacao, setObservacao] = useState(""); // novo estado
+  const [observacao, setObservacao] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +35,7 @@ const SaidaForm = () => {
           handleUnauthorized();
           return;
         }
-        if (!res.ok) throw new Error("Erro ao carregar produtos");
+        if (!res.ok) throw new Error("Erro ao carregar produtos.");
         return res.json();
       })
       .then(setProdutos)
@@ -47,13 +49,8 @@ const SaidaForm = () => {
 
     const qtd = Number(quantidade);
 
-    if (!produtoId) {
-      setError("Produto é obrigatório.");
-      return;
-    }
-
-    if (!quantidade || isNaN(qtd) || !Number.isInteger(qtd) || qtd <= 0) {
-      setError("Quantidade deve ser um número inteiro maior que zero.");
+    if (!produtoId || qtd <= 0 || isNaN(qtd) || !Number.isInteger(qtd)) {
+      setError("Preencha corretamente o produto e a quantidade.");
       return;
     }
 
@@ -67,10 +64,7 @@ const SaidaForm = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
           },
-          body: JSON.stringify({
-            quantidade: qtd,
-            observacao, // enviar observação
-          }),
+          body: JSON.stringify({ quantidade: qtd, observacao }),
         }
       );
 
@@ -80,15 +74,12 @@ const SaidaForm = () => {
       }
 
       const data = await resp.json();
-
-      if (!resp.ok) {
-        throw new Error(data.error || "Erro no servidor");
-      }
+      if (!resp.ok) throw new Error(data.error || "Erro no servidor");
 
       setSuccess("Saída registrada com sucesso!");
       setProdutoId("");
       setQuantidade("");
-      setObservacao(""); // limpar campo
+      setObservacao("");
     } catch (err) {
       setError(err.message || "Falha ao registrar saída.");
     } finally {
@@ -97,10 +88,20 @@ const SaidaForm = () => {
   };
 
   return (
-    <Box maxWidth={400} mx="auto">
-      <Typography variant="h5" mb={2}>
+    <Paper
+      sx={{
+        maxWidth: 500,
+        mx: "auto",
+        mt: 4,
+        p: 4,
+        borderRadius: 3,
+        boxShadow: 4,
+      }}
+    >
+      <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
         Registrar Saída de Produto
       </Typography>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -111,6 +112,7 @@ const SaidaForm = () => {
           {success}
         </Alert>
       )}
+
       <form onSubmit={handleSubmit}>
         <TextField
           select
@@ -148,7 +150,7 @@ const SaidaForm = () => {
           onChange={(e) => setObservacao(e.target.value)}
           margin="normal"
           multiline
-          rows={2}
+          rows={3}
           placeholder="Ex: Saída para cliente XYZ..."
           disabled={loading}
         />
@@ -157,13 +159,17 @@ const SaidaForm = () => {
           variant="contained"
           type="submit"
           fullWidth
-          sx={{ mt: 2 }}
+          sx={{ mt: 3, py: 1.5, fontWeight: "bold" }}
           disabled={loading}
         >
-          {loading ? "Registrando..." : "Registrar Saída"}
+          {loading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            "Registrar Saída"
+          )}
         </Button>
       </form>
-    </Box>
+    </Paper>
   );
 };
 

@@ -26,7 +26,6 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-
 import api from "../../services/api";
 
 export default function ProdutoList({ refresh }) {
@@ -45,7 +44,6 @@ export default function ProdutoList({ refresh }) {
   const [categorias, setCategorias] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
 
-  // Carregar produtos, categorias e fornecedores
   useEffect(() => {
     carregarCategorias();
     carregarFornecedores();
@@ -59,11 +57,8 @@ export default function ProdutoList({ refresh }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/produtos"); // axios com token
-      const data = res.data;
-
-      // Normaliza para garantir números e nomes de categoria/fornecedor
-      const normalizados = data.map((p) => ({
+      const res = await api.get("/produtos");
+      const data = res.data.map((p) => ({
         ...p,
         preco: Number(p.preco) || 0,
         quantidade: Number(p.quantidade) || 0,
@@ -73,8 +68,8 @@ export default function ProdutoList({ refresh }) {
         idFornecedor: p.fornecedor?.id || "",
       }));
 
-      setProdutos(normalizados);
-      setFilteredProdutos(normalizados);
+      setProdutos(data);
+      setFilteredProdutos(data);
     } catch (err) {
       setError(err.message || "Erro ao buscar produtos");
     } finally {
@@ -84,7 +79,7 @@ export default function ProdutoList({ refresh }) {
 
   const carregarCategorias = async () => {
     try {
-      const res = await api.get("/categorias"); // axios com token
+      const res = await api.get("/categorias");
       setCategorias(res.data);
     } catch (err) {
       console.error(err);
@@ -93,14 +88,13 @@ export default function ProdutoList({ refresh }) {
 
   const carregarFornecedores = async () => {
     try {
-      const res = await api.get("/fornecedores"); // axios com token
+      const res = await api.get("/fornecedores");
       setFornecedores(res.data);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Filtrar produtos com base na busca
   useEffect(() => {
     const termo = search.toLowerCase();
     const filtrados = produtos.filter(
@@ -112,11 +106,10 @@ export default function ProdutoList({ refresh }) {
     setFilteredProdutos(filtrados);
   }, [search, produtos]);
 
-  // Excluir produto
   const handleDelete = async () => {
     if (!produtoParaExcluir) return;
     try {
-      await api.delete(`/produtos/${produtoParaExcluir.id}`); // axios com token
+      await api.delete(`/produtos/${produtoParaExcluir.id}`);
       setDeleteDialogOpen(false);
       setProdutoParaExcluir(null);
       carregarProdutos();
@@ -125,7 +118,6 @@ export default function ProdutoList({ refresh }) {
     }
   };
 
-  // Abrir diálogo para editar produto
   const handleEdit = (produto) => {
     setProdutoParaEditar({
       ...produto,
@@ -135,7 +127,6 @@ export default function ProdutoList({ refresh }) {
     setEditDialogOpen(true);
   };
 
-  // Salvar edição
   const handleSaveEdit = async () => {
     const { id, nome, quantidade, preco, idCategoria, idFornecedor } =
       produtoParaEditar;
@@ -150,7 +141,7 @@ export default function ProdutoList({ refresh }) {
         preco: Number(preco),
         fornecedorId: idFornecedor,
         categoriaId: idCategoria,
-      }); // axios com token
+      });
       setEditDialogOpen(false);
       setProdutoParaEditar(null);
       carregarProdutos();
@@ -176,10 +167,13 @@ export default function ProdutoList({ refresh }) {
   return (
     <>
       <Paper sx={{ width: "100%", overflow: "hidden", mt: 3 }}>
-        <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography variant="h6">Lista de Produtos</Typography>
+        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography variant="h5" fontWeight="bold" color="primary">
+            Lista de Produtos
+          </Typography>
+
           <TextField
-            placeholder="Pesquisar por nome, categoria ou fornecedor"
+            placeholder="Pesquisar por nome, categoria ou fornecedor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             variant="outlined"
@@ -191,6 +185,7 @@ export default function ProdutoList({ refresh }) {
                   <SearchIcon color="action" />
                 </InputAdornment>
               ),
+              sx: { borderRadius: 2 },
             }}
           />
         </Box>
@@ -201,7 +196,7 @@ export default function ProdutoList({ refresh }) {
               <TableRow>
                 {[
                   "Nome",
-                  "Quantidade",
+                  "Qtd.",
                   "Preço",
                   "Categoria",
                   "Fornecedor",
@@ -212,7 +207,9 @@ export default function ProdutoList({ refresh }) {
                     sx={{
                       backgroundColor: "primary.main",
                       color: "common.white",
+                      fontWeight: "bold",
                     }}
+                    align={head === "Ações" ? "center" : "left"}
                   >
                     {head}
                   </TableCell>
@@ -226,7 +223,12 @@ export default function ProdutoList({ refresh }) {
                     key={p.id}
                     hover
                     sx={{
-                      "&:nth-of-type(odd)": { backgroundColor: "action.hover" },
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "action.hover",
+                      },
+                      "&:hover": {
+                        backgroundColor: "#f1f1f1",
+                      },
                     }}
                   >
                     <TableCell>{p.nome}</TableCell>
@@ -234,8 +236,12 @@ export default function ProdutoList({ refresh }) {
                     <TableCell>R$ {p.preco.toFixed(2)}</TableCell>
                     <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.fornecedor}</TableCell>
-                    <TableCell>
-                      <IconButton color="primary" onClick={() => handleEdit(p)}>
+                    <TableCell align="center">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleEdit(p)}
+                        sx={{ mx: 0.5 }}
+                      >
                         <EditIcon />
                       </IconButton>
                       <IconButton
@@ -244,6 +250,7 @@ export default function ProdutoList({ refresh }) {
                           setProdutoParaExcluir(p);
                           setDeleteDialogOpen(true);
                         }}
+                        sx={{ mx: 0.5 }}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -252,8 +259,10 @@ export default function ProdutoList({ refresh }) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    Nenhum produto encontrado
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">
+                      Nenhum produto encontrado
+                    </Typography>
                   </TableCell>
                 </TableRow>
               )}
@@ -262,34 +271,45 @@ export default function ProdutoList({ refresh }) {
         </TableContainer>
       </Paper>
 
-      {/* Diálogo exclusão */}
+      {/* Diálogo de Exclusão */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>
-          Deseja realmente remover o produto "{produtoParaExcluir?.nome}"?
+        <DialogTitle sx={{ fontWeight: "bold", color: "error.main" }}>
+          Confirmar Remoção
         </DialogTitle>
-        <DialogActions>
+        <DialogContent>
+          Deseja realmente excluir o produto "
+          <strong>{produtoParaExcluir?.nome}</strong>"?
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">
             Cancelar
           </Button>
-          <Button onClick={handleDelete} color="error">
+          <Button onClick={handleDelete} color="error" variant="contained">
             Remover
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo edição */}
+      {/* Diálogo de Edição */}
       <Dialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Editar Produto</DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>Editar Produto</DialogTitle>
         <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+          sx={{
+            px: 3,
+            pt: 2,
+            pb: 1,
+            gap: 2,
+            display: "flex",
+            flexDirection: "column",
+          }}
         >
           <TextField
             label="Nome"
@@ -328,7 +348,6 @@ export default function ProdutoList({ refresh }) {
             fullWidth
             inputProps={{ min: 0, step: 0.01 }}
           />
-
           <FormControl fullWidth>
             <InputLabel>Categoria</InputLabel>
             <Select
@@ -348,7 +367,6 @@ export default function ProdutoList({ refresh }) {
               ))}
             </Select>
           </FormControl>
-
           <FormControl fullWidth>
             <InputLabel>Fornecedor</InputLabel>
             <Select
@@ -369,11 +387,16 @@ export default function ProdutoList({ refresh }) {
             </Select>
           </FormControl>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setEditDialogOpen(false)} color="inherit">
             Cancelar
           </Button>
-          <Button onClick={handleSaveEdit} color="primary">
+          <Button
+            onClick={handleSaveEdit}
+            color="primary"
+            variant="contained"
+            sx={{ fontWeight: "bold", px: 4 }}
+          >
             Salvar
           </Button>
         </DialogActions>

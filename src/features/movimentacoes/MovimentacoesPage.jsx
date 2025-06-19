@@ -111,22 +111,21 @@ function MovimentacaoHistorico() {
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <strong>Produto</strong>
-                  </TableCell>
-                  <TableCell>
-                    <strong>Tipo</strong>
-                  </TableCell>
-                  <TableCell>
-                    <strong>Quantidade</strong>
-                  </TableCell>
-                  <TableCell>
-                    <strong>Data</strong>
-                  </TableCell>
-                  <TableCell>
-                    <strong>Observação</strong>
-                  </TableCell>
+                <TableRow
+                  sx={{
+                    backgroundColor: "primary.main",
+                    "& th": {
+                      color: "common.white",
+                      fontWeight: "bold",
+                      fontSize: 16,
+                    },
+                  }}
+                >
+                  <TableCell>Produto</TableCell>
+                  <TableCell>Tipo</TableCell>
+                  <TableCell align="right">Quantidade</TableCell>
+                  <TableCell>Data</TableCell>
+                  <TableCell>Observação</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -138,10 +137,10 @@ function MovimentacaoHistorico() {
                   </TableRow>
                 ) : (
                   movimentacoesPaginadas.map((mov) => (
-                    <TableRow key={mov.id}>
+                    <TableRow key={mov.id} hover>
                       <TableCell>{mov.produto?.nome || "Sem nome"}</TableCell>
                       <TableCell>{mov.tipo}</TableCell>
-                      <TableCell>{mov.quantidade}</TableCell>
+                      <TableCell align="right">{mov.quantidade}</TableCell>
                       <TableCell>
                         {new Date(mov.data_movimento).toLocaleString("pt-BR", {
                           day: "2-digit",
