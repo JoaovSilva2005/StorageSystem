@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import ProdutoForm from "../features/produtos/ProdutoForm";
 import ProdutoList from "../features/produtos/ProdutoList";
-
 import FornecedorPage from "../features/fornecedores/FornecedorPage";
 import CategoriaPage from "../features/categorias/CategoriaPage";
 import MovimentacoesPage from "../features/movimentacoes/MovimentacoesPage";
@@ -11,8 +10,10 @@ import SaidaPage from "../features/movimentacoes/SaidaForm";
 import EntradaPage from "../features/movimentacoes/EntradaForm";
 import LoginPage from "../features/auth/LoginPage";
 import DashboardPage from "../features/dashboard/DashboardPage";
+import HomePage from "../features/home/HomePage";
 
-// Componente para proteger rotas com token
+import MainLayout from "../components/layout/MainLayout";
+
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -21,77 +22,39 @@ function PrivateRoute({ children }) {
 export default function AppRoutes({ atualizar, refresh }) {
   return (
     <Routes>
-      {/* Rota pública */}
+      {/* Página Home pública independente */}
+      <Route path="/" element={<HomePage />} />
+
+      {/* Login público */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Rotas protegidas */}
+      {/* Rotas protegidas envolvidas pelo layout */}
       <Route
-        path="/dashboard"
+        path="/*"
         element={
           <PrivateRoute>
-            <DashboardPage />
+            <MainLayout>
+              <Routes>
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route
+                  path="produtos/form"
+                  element={<ProdutoForm onProdutoAdicionado={atualizar} />}
+                />
+                <Route
+                  path="produtos/lista"
+                  element={<ProdutoList refresh={refresh} />}
+                />
+                <Route path="fornecedores" element={<FornecedorPage />} />
+                <Route path="categorias" element={<CategoriaPage />} />
+                <Route path="movimentacoes" element={<MovimentacoesPage />} />
+                <Route path="saida" element={<SaidaPage />} />
+                <Route path="entrada" element={<EntradaPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" />} />
+              </Routes>
+            </MainLayout>
           </PrivateRoute>
         }
       />
-      <Route
-        path="/produtos/form"
-        element={
-          <PrivateRoute>
-            <ProdutoForm onProdutoAdicionado={atualizar} />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/produtos/lista"
-        element={
-          <PrivateRoute>
-            <ProdutoList refresh={refresh} />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/fornecedores"
-        element={
-          <PrivateRoute>
-            <FornecedorPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/categorias"
-        element={
-          <PrivateRoute>
-            <CategoriaPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/movimentacoes"
-        element={
-          <PrivateRoute>
-            <MovimentacoesPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/saida"
-        element={
-          <PrivateRoute>
-            <SaidaPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/entrada"
-        element={
-          <PrivateRoute>
-            <EntradaPage />
-          </PrivateRoute>
-        }
-      />
-
-      {/* Rota padrão redireciona para dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
 }

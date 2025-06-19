@@ -63,6 +63,12 @@ const NavigationDrawer = () => {
         Estoque
       </Typography>
       <Divider sx={{ mb: 2 }} />
+      <Typography
+        variant="subtitle2"
+        sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
+      >
+        Cadastro
+      </Typography>
       <List>
         <NavLink
           to="/produtos/form"
@@ -101,7 +107,12 @@ const NavigationDrawer = () => {
         </NavLink>
 
         <Divider sx={{ my: 2 }} />
-
+        <Typography
+          variant="subtitle2"
+          sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
+        >
+          Logistica
+        </Typography>
         <NavLink
           to="/entrada"
           end
@@ -139,7 +150,12 @@ const NavigationDrawer = () => {
         </NavLink>
 
         <Divider sx={{ my: 2 }} />
-
+        <Typography
+          variant="subtitle2"
+          sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
+        >
+          Controle
+        </Typography>
         <NavLink
           to="/movimentacoes"
           end
@@ -159,7 +175,12 @@ const NavigationDrawer = () => {
         </NavLink>
 
         <Divider sx={{ my: 2 }} />
-
+        <Typography
+          variant="subtitle2"
+          sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
+        >
+          Classificaçoes
+        </Typography>
         <NavLink
           to="/fornecedores"
           end
@@ -177,7 +198,6 @@ const NavigationDrawer = () => {
             </ListItemButton>
           )}
         </NavLink>
-
         <NavLink
           to="/categorias"
           end
