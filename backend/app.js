@@ -32,11 +32,32 @@ const autenticarToken = (req, res, next) => {
 
 // Registro de usuário
 app.post("/register", async (req, res) => {
-  const { nome, email, senha } = req.body;
-  if (!nome || !email || !senha)
+  const { nome, email, senha, cpf, telefone } = req.body;
+
+  if (!nome || !email || !senha || !cpf || !telefone) {
+    return res.status(400).json({ error: "Todos os campos são obrigatórios." });
+  }
+
+  // Validação simples de formatos (pode aprimorar conforme necessidade)
+  const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+  const telefoneRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: "Email inválido." });
+  }
+
+  if (!cpfRegex.test(cpf)) {
     return res
       .status(400)
-      .json({ error: "Nome, email e senha são obrigatórios." });
+      .json({ error: "CPF inválido. Use formato 999.999.999-99" });
+  }
+
+  if (!telefoneRegex.test(telefone)) {
+    return res
+      .status(400)
+      .json({ error: "Telefone inválido. Use formato (99) 99999-9999" });
+  }
 
   try {
     const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
@@ -45,11 +66,19 @@ app.post("/register", async (req, res) => {
     if (rows.length > 0)
       return res.status(409).json({ error: "Email já cadastrado." });
 
+    const [cpfRows] = await pool.query("SELECT * FROM usuarios WHERE cpf = ?", [
+      cpf,
+    ]);
+    if (cpfRows.length > 0)
+      return res.status(409).json({ error: "CPF já cadastrado." });
+
     const hash = await bcrypt.hash(senha, 10);
+
     await pool.execute(
-      "INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)",
-      [nome, email, hash]
+      "INSERT INTO usuarios (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)",
+      [nome, email, hash, cpf, telefone]
     );
+
     res.status(201).json({ message: "Usuário registrado com sucesso." });
   } catch (error) {
     res.status(500).json({ error: error.message });
