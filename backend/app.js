@@ -8,120 +8,100 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuração do banco MySQL
-const dbConfig = {
+// Configuração do pool MySQL
+const pool = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "root",
   database: "estoque_db",
-};
-const pool = mysql.createPool(dbConfig);
+});
 
-// Middleware para autenticar JWT
+// Middleware de autenticação
 const autenticarToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token não fornecido." });
-
   jwt.verify(token, "seusegredosecreto", (err, usuario) => {
     if (err) return res.status(403).json({ error: "Token inválido." });
-    req.usuario = usuario;
+    req.usuario = usuario; // { id, email }
     next();
   });
 };
 
-// Registro de usuário
+// ===== Registro =====
 app.post("/register", async (req, res) => {
   const { nome, email, senha, cpf, telefone } = req.body;
-
-  if (!nome || !email || !senha || !cpf || !telefone) {
+  if (!nome || !email || !senha || !cpf || !telefone)
     return res.status(400).json({ error: "Todos os campos são obrigatórios." });
-  }
 
-  // Validação simples de formatos (pode aprimorar conforme necessidade)
   const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
-  const telefoneRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+  const telRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!emailRegex.test(email)) {
+  if (!emailRegex.test(email))
     return res.status(400).json({ error: "Email inválido." });
-  }
-
-  if (!cpfRegex.test(cpf)) {
-    return res
-      .status(400)
-      .json({ error: "CPF inválido. Use formato 999.999.999-99" });
-  }
-
-  if (!telefoneRegex.test(telefone)) {
-    return res
-      .status(400)
-      .json({ error: "Telefone inválido. Use formato (99) 99999-9999" });
-  }
+  if (!cpfRegex.test(cpf))
+    return res.status(400).json({ error: "CPF inválido." });
+  if (!telRegex.test(telefone))
+    return res.status(400).json({ error: "Telefone inválido." });
 
   try {
-    const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
+    const [e] = await pool.query("SELECT 1 FROM usuarios WHERE email = ?", [
       email,
     ]);
-    if (rows.length > 0)
+    if (e.length)
       return res.status(409).json({ error: "Email já cadastrado." });
-
-    const [cpfRows] = await pool.query("SELECT * FROM usuarios WHERE cpf = ?", [
-      cpf,
-    ]);
-    if (cpfRows.length > 0)
-      return res.status(409).json({ error: "CPF já cadastrado." });
+    const [c] = await pool.query("SELECT 1 FROM usuarios WHERE cpf = ?", [cpf]);
+    if (c.length) return res.status(409).json({ error: "CPF já cadastrado." });
 
     const hash = await bcrypt.hash(senha, 10);
-
     await pool.execute(
       "INSERT INTO usuarios (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)",
       [nome, email, hash, cpf, telefone]
     );
-
-    res.status(201).json({ message: "Usuário registrado com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(201).json({ message: "Registro realizado com sucesso." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Login de usuário
+// ===== Login =====
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   try {
     const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
       email,
     ]);
-    if (rows.length === 0)
+    if (!rows.length)
       return res.status(401).json({ error: "Credenciais inválidas." });
-
     const user = rows[0];
-    const match = await bcrypt.compare(senha, user.senha);
-    if (!match)
+    if (!(await bcrypt.compare(senha, user.senha)))
       return res.status(401).json({ error: "Credenciais inválidas." });
 
-    const token = jwt.sign({ id: user.id, email }, "seusegredosecreto", {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      "seusegredosecreto",
+      { expiresIn: "1h" }
+    );
     res.json({ token });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ================= PRODUTOS =================
-
+// ===== Produtos =====
 app.get("/produtos", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   try {
-    const [rows] = await pool.query(`
-      SELECT p.id, p.nome, p.quantidade, p.preco,
-             c.id AS categoria_id, c.nome AS categoria_nome,
-             f.id AS fornecedor_id, f.nome AS fornecedor_nome
-      FROM produto p
-      LEFT JOIN categoria c ON p.categoria_id = c.id
-      LEFT JOIN fornecedor f ON p.fornecedor_id = f.id
-    `);
-
+    const [rows] = await pool.query(
+      `SELECT p.id, p.nome, p.quantidade, p.preco,
+              c.id AS categoria_id, c.nome AS categoria_nome,
+              f.id AS fornecedor_id, f.nome AS fornecedor_nome
+       FROM produto p
+       LEFT JOIN categoria c ON p.categoria_id = c.id
+       LEFT JOIN fornecedor f ON p.fornecedor_id = f.id
+       WHERE p.user_id = ?`,
+      [userId]
+    );
     const produtos = rows.map((r) => ({
       id: r.id,
       nome: r.nome,
@@ -134,82 +114,110 @@ app.get("/produtos", autenticarToken, async (req, res) => {
         ? { id: r.fornecedor_id, nome: r.fornecedor_nome }
         : null,
     }));
-
     res.json(produtos);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.post("/produtos", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
   try {
-    const [result] = await pool.execute(
-      `INSERT INTO produto (nome, quantidade, preco, categoria_id, fornecedor_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nome, quantidade, preco, categoriaId || null, fornecedorId || null]
+    const [r] = await pool.execute(
+      `INSERT INTO produto (nome, quantidade, preco, categoria_id, fornecedor_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        nome,
+        quantidade,
+        preco,
+        categoriaId || null,
+        fornecedorId || null,
+        userId,
+      ]
     );
-    res.status(201).json({
-      id: result.insertId,
-      nome,
-      quantidade,
-      preco,
-      categoriaId,
-      fornecedorId,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(201).json({ id: r.insertId, nome, quantidade, preco });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.put("/produtos/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
   try {
-    await pool.execute(
-      `UPDATE produto SET nome = ?, quantidade = ?, preco = ?, categoria_id = ?, fornecedor_id = ? WHERE id = ?`,
-      [nome, quantidade, preco, categoriaId || null, fornecedorId || null, id]
+    const [r] = await pool.execute(
+      `UPDATE produto SET nome=?, quantidade=?, preco=?, categoria_id=?, fornecedor_id=?
+       WHERE id=? AND user_id=?`,
+      [
+        nome,
+        quantidade,
+        preco,
+        categoriaId || null,
+        fornecedorId || null,
+        id,
+        userId,
+      ]
     );
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Produto não encontrado ou sem permissão." });
     res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.delete("/produtos/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   try {
-    await pool.execute("DELETE FROM produto WHERE id = ?", [id]);
+    const [r] = await pool.execute(
+      "DELETE FROM produto WHERE id=? AND user_id=?",
+      [id, userId]
+    );
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Produto não encontrado ou sem permissão." });
     res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ================= MOVIMENTAÇÕES =================
-
-async function registraMovimento(produtoId, tipo, quantidade, observacao) {
+// ===== Movimentações =====
+async function registraMovimento(
+  produtoId,
+  userId,
+  tipo,
+  quantidade,
+  observacao
+) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     const sinal = tipo === "entrada" ? 1 : -1;
     const [rows] = await conn.query(
-      "SELECT quantidade FROM produto WHERE id = ?",
-      [produtoId]
+      "SELECT quantidade FROM produto WHERE id = ? AND user_id = ?",
+      [produtoId, userId]
     );
-    if (rows.length === 0) throw new Error("Produto não encontrado.");
-    const quantidadeAtual = rows[0].quantidade;
-    if (tipo === "saida" && quantidade > quantidadeAtual)
+    if (!rows.length)
+      throw new Error("Produto não encontrado ou sem permissão.");
+    const qtdAtual = rows[0].quantidade;
+    if (tipo === "saida" && quantidade > qtdAtual)
       throw new Error("Estoque insuficiente.");
 
     await conn.execute(
-      "UPDATE produto SET quantidade = quantidade + ? WHERE id = ?",
-      [sinal * quantidade, produtoId]
+      "UPDATE produto SET quantidade = quantidade + ? WHERE id = ? AND user_id = ?",
+      [sinal * quantidade, produtoId, userId]
     );
     await conn.execute(
-      `INSERT INTO movimentacao_estoque (produto_id, tipo, quantidade, observacao)
-       VALUES (?, ?, ?, ?)`,
-      [produtoId, tipo, quantidade, observacao || null]
+      `INSERT INTO movimentacao_estoque (produto_id, tipo, quantidade, observacao, user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [produtoId, tipo, quantidade, observacao || null, userId]
     );
     await conn.commit();
   } catch (err) {
@@ -221,192 +229,195 @@ async function registraMovimento(produtoId, tipo, quantidade, observacao) {
 }
 
 app.post("/produtos/:id/entrada", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   const { quantidade, observacao } = req.body;
   if (!quantidade || quantidade <= 0)
     return res.status(400).json({ error: "Quantidade inválida." });
-
   try {
-    await registraMovimento(id, "entrada", quantidade, observacao);
+    await registraMovimento(id, userId, "entrada", quantidade, observacao);
     res.status(201).json({ message: "Entrada registrada com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.post("/produtos/:id/saida", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   const { quantidade, observacao } = req.body;
   if (!quantidade || quantidade <= 0)
     return res.status(400).json({ error: "Quantidade inválida." });
-
   try {
-    await registraMovimento(id, "saida", quantidade, observacao);
+    await registraMovimento(id, userId, "saida", quantidade, observacao);
     res.status(201).json({ message: "Saída registrada com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.get("/movimentacoes", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   try {
-    const [rows] = await pool.query(`
-      SELECT m.id, m.tipo, m.quantidade, m.data_movimento, m.observacao,
-             p.id AS produto_id, p.nome AS produto_nome
-      FROM movimentacao_estoque m
-      JOIN produto p ON m.produto_id = p.id
-      ORDER BY m.data_movimento DESC
-    `);
-
-    const movimentacoes = rows.map((r) => ({
+    const [rows] = await pool.query(
+      `SELECT m.id, m.tipo, m.quantidade, m.data_movimento, m.observacao,
+              p.id AS produto_id, p.nome AS produto_nome
+       FROM movimentacao_estoque m
+       JOIN produto p ON m.produto_id = p.id
+       WHERE m.user_id = ?
+       ORDER BY m.data_movimento DESC`,
+      [userId]
+    );
+    const movs = rows.map((r) => ({
       id: r.id,
       tipo: r.tipo,
       quantidade: r.quantidade,
       data_movimento: r.data_movimento,
       observacao: r.observacao,
-      produto: {
-        id: r.produto_id,
-        nome: r.produto_nome,
-      },
+      produto: { id: r.produto_id, nome: r.produto_nome },
     }));
-
-    res.json(movimentacoes);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(movs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ================= CATEGORIAS =================
-
+// ===== Categorias =====
 app.get("/categorias", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   try {
-    const [rows] = await pool.query("SELECT * FROM categoria ORDER BY nome");
+    const [rows] = await pool.query(
+      "SELECT id, nome FROM categoria WHERE user_id = ? ORDER BY nome",
+      [userId]
+    );
     res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.post("/categorias", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { nome } = req.body;
   if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
-
   try {
-    const [result] = await pool.execute(
-      "INSERT INTO categoria (nome) VALUES (?)",
-      [nome]
+    const [r] = await pool.execute(
+      "INSERT INTO categoria (nome, user_id) VALUES (?, ?)",
+      [nome, userId]
     );
-    res.status(201).json({ id: result.insertId, nome });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(201).json({ id: r.insertId, nome });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.put("/categorias/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   const { nome } = req.body;
   if (!nome) return res.status(400).json({ error: "Nome é obrigatório." });
-
   try {
-    await pool.execute("UPDATE categoria SET nome = ? WHERE id = ?", [
-      nome,
-      id,
-    ]);
+    const [r] = await pool.execute(
+      "UPDATE categoria SET nome = ? WHERE id = ? AND user_id = ?",
+      [nome, id, userId]
+    );
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Categoria não encontrada ou sem permissão." });
     res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.delete("/categorias/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   try {
-    await pool.execute("DELETE FROM categoria WHERE id = ?", [id]);
+    const [r] = await pool.execute(
+      "DELETE FROM categoria WHERE id = ? AND user_id = ?",
+      [id, userId]
+    );
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Categoria não encontrada ou sem permissão." });
     res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ================= FORNECEDORES =================
-
-// Rota para listar todos fornecedores
+// ===== Fornecedores =====
 app.get("/fornecedores", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   try {
-    const [rows] = await pool.query("SELECT * FROM fornecedor");
+    const [rows] = await pool.query(
+      "SELECT id, nome, cnpj, email, telefone FROM fornecedor WHERE user_id = ?",
+      [userId]
+    );
     res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Rota para criar um novo fornecedor
 app.post("/fornecedores", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { nome, cnpj, email, telefone } = req.body;
-
-  if (!nome || !cnpj) {
+  if (!nome || !cnpj)
     return res.status(400).json({ error: "Nome e CNPJ são obrigatórios." });
-  }
-
   try {
-    const [result] = await pool.execute(
-      "INSERT INTO fornecedor (nome, cnpj, email, telefone) VALUES (?, ?, ?, ?)",
-      [nome, cnpj, email || null, telefone || null]
+    const [r] = await pool.execute(
+      "INSERT INTO fornecedor (nome, cnpj, email, telefone, user_id) VALUES (?, ?, ?, ?, ?)",
+      [nome, cnpj, email || null, telefone || null, userId]
     );
-    res.status(201).json({
-      id: result.insertId,
-      nome,
-      cnpj,
-      email,
-      telefone,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(201).json({ id: r.insertId, nome, cnpj, email, telefone });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Rota para atualizar um fornecedor existente
 app.put("/fornecedores/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
   const { nome, cnpj, email, telefone } = req.body;
-
-  if (!nome || !cnpj) {
+  if (!nome || !cnpj)
     return res.status(400).json({ error: "Nome e CNPJ são obrigatórios." });
-  }
-
   try {
-    const [result] = await pool.execute(
-      "UPDATE fornecedor SET nome = ?, cnpj = ?, email = ?, telefone = ? WHERE id = ?",
-      [nome, cnpj, email || null, telefone || null, id]
+    const [r] = await pool.execute(
+      "UPDATE fornecedor SET nome=?, cnpj=?, email=?, telefone=? WHERE id=? AND user_id=?",
+      [nome, cnpj, email || null, telefone || null, id, userId]
     );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Fornecedor não encontrado." });
-    }
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Fornecedor não encontrado ou sem permissão." });
     res.json({ message: "Fornecedor atualizado com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Rota para deletar um fornecedor
 app.delete("/fornecedores/:id", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
   const { id } = req.params;
-
   try {
-    const [result] = await pool.execute("DELETE FROM fornecedor WHERE id = ?", [
-      id,
-    ]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Fornecedor não encontrado." });
-    }
+    const [r] = await pool.execute(
+      "DELETE FROM fornecedor WHERE id=? AND user_id=?",
+      [id, userId]
+    );
+    if (!r.affectedRows)
+      return res
+        .status(404)
+        .json({ error: "Fornecedor não encontrado ou sem permissão." });
     res.json({ message: "Fornecedor excluído com sucesso." });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Servidor ouvindo
+// Servidor
 const PORT = 3001;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
+import { useNavigate } from "react-router-dom"; // <-- Import do useNavigate
 
-const API_URL = "http://localhost:3001"; // Ajuste se seu back estiver em outra porta/host
+const API_URL = "http://localhost:3001";
 
 function LoginRegister() {
+  const navigate = useNavigate(); // <-- Inicializa o hook de navegação
   const [isActive, setIsActive] = useState(false);
 
-  // Mostrar/ocultar senhas
   const [mostrarSenhaLogin, setMostrarSenhaLogin] = useState(false);
   const [mostrarSenhaRegister, setMostrarSenhaRegister] = useState(false);
   const [mostrarConfirmarSenhaRegister, setMostrarConfirmarSenhaRegister] =
@@ -22,7 +23,6 @@ function LoginRegister() {
     telefone: "",
   });
 
-  // Registro
   const handleRegister = async () => {
     const { nome, email, senha, confirmarSenha, cpf, telefone } = registerData;
 
@@ -59,13 +59,7 @@ function LoginRegister() {
       const response = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          email,
-          senha,
-          cpf,
-          telefone,
-        }),
+        body: JSON.stringify({ nome, email, senha, cpf, telefone }),
       });
 
       if (response.ok) {
@@ -88,7 +82,6 @@ function LoginRegister() {
     }
   };
 
-  // Login
   const handleLogin = async () => {
     const { email, senha } = loginData;
     if (!email || !senha) {
@@ -105,10 +98,9 @@ function LoginRegister() {
 
       if (response.ok) {
         const data = await response.json();
-        // Salvar token JWT localmente para futuras requisições
         localStorage.setItem("token", data.token);
         alert("Login realizado com sucesso!");
-        // Aqui você pode redirecionar para outra página ou atualizar estado
+        navigate("/dashboard"); // <-- Redirecionamento após login
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Credenciais inválidas.");
@@ -171,9 +163,6 @@ function LoginRegister() {
                     type="button"
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                     onClick={() => setMostrarSenhaLogin(!mostrarSenhaLogin)}
-                    aria-label={
-                      mostrarSenhaLogin ? "Ocultar senha" : "Mostrar senha"
-                    }
                   >
                     {mostrarSenhaLogin ? (
                       <AiFillEyeInvisible size={24} />
@@ -234,9 +223,6 @@ function LoginRegister() {
                     onClick={() =>
                       setMostrarSenhaRegister(!mostrarSenhaRegister)
                     }
-                    aria-label={
-                      mostrarSenhaRegister ? "Ocultar senha" : "Mostrar senha"
-                    }
                   >
                     {mostrarSenhaRegister ? (
                       <AiFillEyeInvisible size={24} />
@@ -266,11 +252,6 @@ function LoginRegister() {
                       setMostrarConfirmarSenhaRegister(
                         !mostrarConfirmarSenhaRegister
                       )
-                    }
-                    aria-label={
-                      mostrarConfirmarSenhaRegister
-                        ? "Ocultar senha"
-                        : "Mostrar senha"
                     }
                   >
                     {mostrarConfirmarSenhaRegister ? (
@@ -346,22 +327,6 @@ function LoginRegister() {
       </div>
     </div>
   );
-}
-
-function formatCpf(value) {
-  return value
-    .replace(/\D/g, "")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
-
-function formatTelefone(value) {
-  return value
-    .replace(/\D/g, "")
-    .replace(/(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d)/, "$1-$2")
-    .replace(/(-\d{4})\d+?$/, "$1");
 }
 
 export default LoginRegister;
