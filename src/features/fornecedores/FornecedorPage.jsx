@@ -24,6 +24,25 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import api from "../../services/api";
 
+// Funções utilitárias para formatação
+const formatCNPJ = (value) =>
+  value
+    .replace(/\D/g, "")
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2")
+    .slice(0, 18);
+
+const formatTelefone = (value) =>
+  value
+    .replace(/\D/g, "")
+    .replace(/^(\d{2})(\d)/g, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2")
+    .slice(0, 15);
+
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 export default function FornecedorPage() {
   const theme = useTheme();
 
@@ -69,22 +88,34 @@ export default function FornecedorPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    if (name === "cnpj") formattedValue = formatCNPJ(value);
+    if (name === "telefone") formattedValue = formatTelefone(value);
+
+    setForm((prev) => ({ ...prev, [name]: formattedValue }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nome.trim() || !form.cnpj.trim()) {
+    const { nome, cnpj, email, telefone } = form;
+
+    if (!nome.trim() || !cnpj.trim()) {
       alert("Nome e CNPJ são obrigatórios");
+      return;
+    }
+
+    if (email && !validateEmail(email)) {
+      alert("E-mail inválido");
       return;
     }
 
     try {
       await api.post("/fornecedores", {
-        nome: form.nome.trim(),
-        cnpj: form.cnpj.trim(),
-        email: form.email.trim(),
-        telefone: form.telefone.trim(),
+        nome: nome.trim(),
+        cnpj: cnpj.trim(),
+        email: email.trim(),
+        telefone: telefone.trim(),
       });
       setForm({ nome: "", cnpj: "", email: "", telefone: "" });
       fetchFornecedores();
@@ -109,17 +140,24 @@ export default function FornecedorPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!fornecedorEdit?.nome.trim() || !fornecedorEdit?.cnpj.trim()) {
+    const { nome, cnpj, email, telefone } = fornecedorEdit;
+
+    if (!nome.trim() || !cnpj.trim()) {
       alert("Nome e CNPJ são obrigatórios");
+      return;
+    }
+
+    if (email && !validateEmail(email)) {
+      alert("E-mail inválido");
       return;
     }
 
     try {
       await api.put(`/fornecedores/${fornecedorEdit.id}`, {
-        nome: fornecedorEdit.nome.trim(),
-        cnpj: fornecedorEdit.cnpj.trim(),
-        email: fornecedorEdit.email?.trim() || "",
-        telefone: fornecedorEdit.telefone?.trim() || "",
+        nome: nome.trim(),
+        cnpj: cnpj.trim(),
+        email: email.trim(),
+        telefone: telefone.trim(),
       });
       handleCloseEditDialog();
       fetchFornecedores();
@@ -131,6 +169,19 @@ export default function FornecedorPage() {
         console.error(err);
       }
     }
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    let formatted = value;
+
+    if (name === "cnpj") formatted = formatCNPJ(value);
+    if (name === "telefone") formatted = formatTelefone(value);
+
+    setFornecedorEdit((prev) => ({
+      ...prev,
+      [name]: formatted,
+    }));
   };
 
   const openDeleteDialog = (fornecedor) => {
@@ -158,21 +209,12 @@ export default function FornecedorPage() {
     }
   };
 
-  // Filtra fornecedores pelo nome com base no termo de busca
   const fornecedoresFiltrados = fornecedores.filter((f) =>
     f.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <Stack
-      spacing={5}
-      sx={{
-        maxWidth: 720,
-        mx: "auto",
-        py: 4,
-        px: 2,
-      }}
-    >
+    <Stack spacing={5} sx={{ maxWidth: 720, mx: "auto", py: 4, px: 2 }}>
       <Typography
         variant="h4"
         align="center"
@@ -184,14 +226,7 @@ export default function FornecedorPage() {
       </Typography>
 
       {/* Cadastro */}
-      <Paper
-        sx={{
-          p: 4,
-          boxShadow: theme.shadows[3],
-          borderRadius: 2,
-          backgroundColor: theme.palette.background.paper,
-        }}
-      >
+      <Paper sx={{ p: 4, borderRadius: 2 }}>
         <Typography variant="h6" fontWeight="600" mb={3}>
           Cadastro de Fornecedor
         </Typography>
@@ -204,7 +239,6 @@ export default function FornecedorPage() {
               onChange={handleInputChange}
               required
               fullWidth
-              autoFocus
             />
             <TextField
               label="CNPJ"
@@ -230,12 +264,7 @@ export default function FornecedorPage() {
               onChange={handleInputChange}
               fullWidth
             />
-            <Button
-              variant="contained"
-              type="submit"
-              size="large"
-              sx={{ mt: 2, fontWeight: 600 }}
-            >
+            <Button variant="contained" type="submit" size="large">
               Cadastrar
             </Button>
           </Stack>
@@ -245,24 +274,15 @@ export default function FornecedorPage() {
       {/* Pesquisa */}
       <TextField
         label="Pesquisar fornecedores"
-        variant="outlined"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         fullWidth
         size="small"
-        sx={{ mb: 2 }}
         placeholder="Buscar por nome"
       />
 
       {/* Lista */}
-      <Paper
-        sx={{
-          p: 3,
-          boxShadow: theme.shadows[3],
-          borderRadius: 2,
-          backgroundColor: theme.palette.background.paper,
-        }}
-      >
+      <Paper sx={{ p: 3, borderRadius: 2 }}>
         <Typography variant="h6" fontWeight="600" mb={3}>
           Fornecedores Cadastrados
         </Typography>
@@ -271,76 +291,50 @@ export default function FornecedorPage() {
             <CircularProgress />
           </Box>
         ) : (
-          <Table
-            size="small"
-            sx={{
-              wordBreak: "break-word",
-              borderCollapse: "separate",
-              borderSpacing: "0 8px",
-            }}
-          >
+          <Table size="small">
             <TableHead>
-              <TableRow
-                sx={{
-                  backgroundColor: theme.palette.primary.main,
-                  "& th": {
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    paddingY: 1.5,
-                    borderRadius: 1,
-                  },
-                }}
-              >
-                <TableCell>Nome</TableCell>
-                <TableCell>CNPJ</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Telefone</TableCell>
-                <TableCell align="right">Ações</TableCell>
+              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                  Nome
+                </TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                  CNPJ
+                </TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                  Email
+                </TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                  Telefone
+                </TableCell>
+                <TableCell align="right" sx={{ color: "#fff" }}>
+                  Ações
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {fornecedoresFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center">
                     Nenhum fornecedor encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                fornecedoresFiltrados.map((fornecedor) => (
-                  <TableRow
-                    key={fornecedor.id}
-                    sx={{
-                      backgroundColor: "#f9f9f9",
-                      "&:hover": {
-                        backgroundColor: "#e0e0e0",
-                      },
-                      borderRadius: 1,
-                      "& td": {
-                        borderBottom: "none",
-                      },
-                    }}
-                  >
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      {fornecedor.nome}
-                    </TableCell>
-                    <TableCell>{fornecedor.cnpj}</TableCell>
-                    <TableCell>{fornecedor.email || "-"}</TableCell>
-                    <TableCell>{fornecedor.telefone || "-"}</TableCell>
+                fornecedoresFiltrados.map((f) => (
+                  <TableRow key={f.id}>
+                    <TableCell>{f.nome}</TableCell>
+                    <TableCell>{f.cnpj}</TableCell>
+                    <TableCell>{f.email || "-"}</TableCell>
+                    <TableCell>{f.telefone || "-"}</TableCell>
                     <TableCell align="right">
                       <IconButton
+                        onClick={() => openEditDialog(f)}
                         color="primary"
-                        aria-label="editar"
-                        onClick={() => openEditDialog(fornecedor)}
-                        size="large"
                       >
                         <EditIcon />
                       </IconButton>
                       <IconButton
+                        onClick={() => openDeleteDialog(f)}
                         color="error"
-                        aria-label="excluir"
-                        onClick={() => openDeleteDialog(fornecedor)}
-                        size="large"
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -353,7 +347,7 @@ export default function FornecedorPage() {
         )}
       </Paper>
 
-      {/* Edit Dialog */}
+      {/* Dialog Edit */}
       <Dialog
         open={editDialogOpen}
         onClose={handleCloseEditDialog}
@@ -367,51 +361,35 @@ export default function FornecedorPage() {
               label="Nome"
               name="nome"
               value={fornecedorEdit?.nome || ""}
-              onChange={(e) =>
-                setFornecedorEdit((prev) => ({ ...prev, nome: e.target.value }))
-              }
+              onChange={handleEditChange}
               required
               fullWidth
-              autoFocus
             />
             <TextField
               label="CNPJ"
               name="cnpj"
               value={fornecedorEdit?.cnpj || ""}
-              onChange={(e) =>
-                setFornecedorEdit((prev) => ({ ...prev, cnpj: e.target.value }))
-              }
+              onChange={handleEditChange}
               required
               fullWidth
             />
             <TextField
               label="Email"
               name="email"
-              type="email"
               value={fornecedorEdit?.email || ""}
-              onChange={(e) =>
-                setFornecedorEdit((prev) => ({
-                  ...prev,
-                  email: e.target.value,
-                }))
-              }
+              onChange={handleEditChange}
               fullWidth
             />
             <TextField
               label="Telefone"
               name="telefone"
               value={fornecedorEdit?.telefone || ""}
-              onChange={(e) =>
-                setFornecedorEdit((prev) => ({
-                  ...prev,
-                  telefone: e.target.value,
-                }))
-              }
+              onChange={handleEditChange}
               fullWidth
             />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={handleCloseEditDialog}>Cancelar</Button>
           <Button variant="contained" onClick={handleSaveEdit}>
             Salvar
@@ -419,7 +397,7 @@ export default function FornecedorPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* Dialog Delete */}
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDeleteDialog}
@@ -431,7 +409,7 @@ export default function FornecedorPage() {
           Tem certeza que deseja excluir o fornecedor{" "}
           <strong>{fornecedorDelete?.nome}</strong>?
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button
             variant="contained"
