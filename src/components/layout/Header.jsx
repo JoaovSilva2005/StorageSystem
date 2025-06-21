@@ -5,6 +5,7 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import Button from "@mui/material/Button";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined"; // Ícone de estoque
 import { useNavigate } from "react-router-dom";
 
 const Header = ({ onMenuClick }) => {
@@ -39,9 +40,17 @@ const Header = ({ onMenuClick }) => {
         <Typography
           variant="h6"
           component="div"
-          sx={{ flexGrow: 1, fontWeight: "bold", letterSpacing: 1 }}
+          sx={{
+            flexGrow: 1,
+            fontWeight: "bold",
+            letterSpacing: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 1, // espaço entre ícone e texto
+          }}
         >
-          Sistema de Estoque
+          <Inventory2OutlinedIcon sx={{ fontSize: 26 }} />
+          StockManager
         </Typography>
 
         <Button

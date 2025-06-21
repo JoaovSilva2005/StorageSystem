@@ -25,7 +25,7 @@ export default function App() {
               <div className="flex-shrink-0 flex items-center">
                 <i className="fas fa-boxes text-blue-500 text-2xl mr-2"></i>
                 <span className="text-xl font-bold text-blue-600">
-                  StockMaster
+                  StockManager
                 </span>
               </div>
             </div>
