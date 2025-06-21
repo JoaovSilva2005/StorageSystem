@@ -59,15 +59,24 @@ export default function ProdutoList({ refresh }) {
     try {
       const res = await api.get("/produtos");
       const data = res.data.map((p) => ({
-        ...p,
+        id: p.id,
+        nome: p.nome,
+        quantidade: p.quantidade,
         preco: Number(p.preco) || 0,
-        quantidade: Number(p.quantidade) || 0,
-        categoria: p.categoria?.nome || "-",
-        fornecedor: p.fornecedor?.nome || "-",
-        idCategoria: p.categoria?.id || "",
-        idFornecedor: p.fornecedor?.id || "",
+        quantidade_minima:
+          p.quantidade_minima !== null && p.quantidade_minima !== 0
+            ? p.quantidade_minima
+            : 0,
+        quantidade_maxima:
+          p.quantidade_maxima !== null && p.quantidade_maxima !== 0
+            ? p.quantidade_maxima
+            : null,
+        alerta: p.alerta || null,
+        categoria: p.categoria || "-", // já vem string direto do backend
+        fornecedor: p.fornecedor || "-", // idem
+        idCategoria: p.idCategoria || "",
+        idFornecedor: p.idFornecedor || "",
       }));
-
       setProdutos(data);
       setFilteredProdutos(data);
     } catch (err) {
@@ -121,6 +130,8 @@ export default function ProdutoList({ refresh }) {
   const handleEdit = (produto) => {
     setProdutoParaEditar({
       ...produto,
+      quantidade_minima: produto.quantidade_minima ?? 0,
+      quantidade_maxima: produto.quantidade_maxima ?? "",
       idCategoria: produto.idCategoria || "",
       idFornecedor: produto.idFornecedor || "",
     });
@@ -128,19 +139,46 @@ export default function ProdutoList({ refresh }) {
   };
 
   const handleSaveEdit = async () => {
-    const { id, nome, quantidade, preco, idCategoria, idFornecedor } =
-      produtoParaEditar;
+    const {
+      id,
+      nome,
+      quantidade,
+      preco,
+      idCategoria,
+      idFornecedor,
+      quantidade_minima,
+      quantidade_maxima,
+    } = produtoParaEditar;
+
     if (!nome.trim()) {
       alert("O nome é obrigatório.");
       return;
     }
+
+    if (quantidade_minima < 0) {
+      alert("Quantidade mínima não pode ser negativa.");
+      return;
+    }
+
+    if (
+      quantidade_maxima !== "" &&
+      quantidade_maxima !== null &&
+      Number(quantidade_maxima) < Number(quantidade_minima)
+    ) {
+      alert("Quantidade máxima deve ser maior ou igual à mínima.");
+      return;
+    }
+
     try {
       await api.put(`/produtos/${id}`, {
         nome,
         quantidade: Number(quantidade),
         preco: Number(preco),
-        fornecedorId: idFornecedor,
         categoriaId: idCategoria,
+        fornecedorId: idFornecedor,
+        quantidade_minima: Number(quantidade_minima),
+        quantidade_maxima:
+          quantidade_maxima === "" ? null : Number(quantidade_maxima),
       });
       setEditDialogOpen(false);
       setProdutoParaEditar(null);
@@ -197,6 +235,8 @@ export default function ProdutoList({ refresh }) {
                 {[
                   "Nome",
                   "Qtd.",
+                  "Qtd. Mín.",
+                  "Qtd. Máx.",
                   "Preço",
                   "Categoria",
                   "Fornecedor",
@@ -233,6 +273,10 @@ export default function ProdutoList({ refresh }) {
                   >
                     <TableCell>{p.nome}</TableCell>
                     <TableCell>{p.quantidade}</TableCell>
+                    <TableCell>{p.quantidade_minima}</TableCell>
+                    <TableCell>
+                      {p.quantidade_maxima !== null ? p.quantidade_maxima : "-"}
+                    </TableCell>
                     <TableCell>R$ {p.preco.toFixed(2)}</TableCell>
                     <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.fornecedor}</TableCell>
@@ -259,7 +303,7 @@ export default function ProdutoList({ refresh }) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       Nenhum produto encontrado
                     </Typography>
@@ -348,6 +392,38 @@ export default function ProdutoList({ refresh }) {
             fullWidth
             inputProps={{ min: 0, step: 0.01 }}
           />
+          <TextField
+            label="Quantidade Mínima"
+            type="number"
+            value={produtoParaEditar?.quantidade_minima || 0}
+            onChange={(e) =>
+              setProdutoParaEditar((prev) => ({
+                ...prev,
+                quantidade_minima: e.target.value,
+              }))
+            }
+            fullWidth
+            inputProps={{ min: 0 }}
+          />
+          <TextField
+            label="Quantidade Máxima"
+            type="number"
+            value={
+              produtoParaEditar?.quantidade_maxima === null ||
+              produtoParaEditar?.quantidade_maxima === "-"
+                ? ""
+                : produtoParaEditar?.quantidade_maxima
+            }
+            onChange={(e) =>
+              setProdutoParaEditar((prev) => ({
+                ...prev,
+                quantidade_maxima: e.target.value,
+              }))
+            }
+            fullWidth
+            inputProps={{ min: 0 }}
+            helperText="Deixe vazio para não ter limite máximo"
+          />
           <FormControl fullWidth>
             <InputLabel>Categoria</InputLabel>
             <Select
@@ -395,7 +471,13 @@ export default function ProdutoList({ refresh }) {
             onClick={handleSaveEdit}
             color="primary"
             variant="contained"
-            sx={{ fontWeight: "bold", px: 4 }}
+            disabled={
+              !produtoParaEditar?.nome ||
+              produtoParaEditar.quantidade_minima < 0 ||
+              (produtoParaEditar.quantidade_maxima !== "" &&
+                Number(produtoParaEditar.quantidade_maxima) <
+                  Number(produtoParaEditar.quantidade_minima))
+            }
           >
             Salvar
           </Button>

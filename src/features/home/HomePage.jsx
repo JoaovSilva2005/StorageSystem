@@ -140,24 +140,24 @@ export default function App() {
               StockMaster
             </p>
             <div className="flex justify-center space-x-4">
-              <a
-                href="#"
+              <button
+                onClick={() => navigate("/login")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-medium transition-colors shadow-lg"
               >
                 Comece Agora
-              </a>
-              <a
-                href="#"
+              </button>
+              <button
+                onClick={() => scrollToSection("funcionalidades")}
                 className="border border-gray-300 hover:border-blue-500 text-gray-700 px-6 py-3 rounded-lg text-lg font-medium transition-colors"
               >
                 Saiba Mais
-              </a>
+              </button>
             </div>
           </div>
         </section>
 
         {/* Features Grid */}
-        <section className="mt-8 mb-16">
+        <section id="funcionalidades" className="mt-8 mb-16 scroll-mt-24">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Como podemos te ajudar?

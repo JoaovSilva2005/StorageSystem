@@ -24,6 +24,8 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
   const [nome, setNome] = useState("");
   const [quantidade, setQuantidade] = useState("");
   const [preco, setPreco] = useState("");
+  const [quantidadeMinima, setQuantidadeMinima] = useState("");
+  const [quantidadeMaxima, setQuantidadeMaxima] = useState("");
   const [fornecedores, setFornecedores] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [fornecedorId, setFornecedorId] = useState("");
@@ -74,6 +76,26 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
     if (!fornecedorId) errors.fornecedorId = "Selecione um fornecedor";
     if (!categoriaId) errors.categoriaId = "Selecione uma categoria";
 
+    if (
+      quantidadeMinima !== "" &&
+      (isNaN(quantidadeMinima) || Number(quantidadeMinima) < 0)
+    ) {
+      errors.quantidadeMinima = "Mínimo inválido (use valor positivo)";
+    }
+    if (
+      quantidadeMaxima !== "" &&
+      (isNaN(quantidadeMaxima) || Number(quantidadeMaxima) < 1)
+    ) {
+      errors.quantidadeMaxima = "Máximo inválido (use valor maior que 0)";
+    }
+    if (
+      quantidadeMinima !== "" &&
+      quantidadeMaxima !== "" &&
+      Number(quantidadeMinima) > Number(quantidadeMaxima)
+    ) {
+      errors.quantidadeMaxima = "Máximo deve ser maior ou igual ao mínimo";
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -88,20 +110,31 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
     setSubmitting(true);
 
     try {
-      await api.post("/produtos", {
+      const dataToSend = {
         nome,
         quantidade: Number(quantidade),
         preco: Number(preco),
         fornecedorId,
         categoriaId,
-      });
+      };
+
+      if (quantidadeMinima !== "") {
+        dataToSend.quantidade_minima = Number(quantidadeMinima);
+      }
+      if (quantidadeMaxima !== "") {
+        dataToSend.quantidade_maxima = Number(quantidadeMaxima);
+      }
+
+      await api.post("/produtos", dataToSend);
 
       setSuccessMessage("Produto cadastrado com sucesso!");
-      onProdutoAdicionado();
+      if (typeof onProdutoAdicionado === "function") onProdutoAdicionado();
 
       setNome("");
       setQuantidade("");
       setPreco("");
+      setQuantidadeMinima("");
+      setQuantidadeMaxima("");
       setFormErrors({});
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
@@ -115,15 +148,7 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
   return (
     <Paper
       elevation={4}
-      sx={{
-        p: 5,
-        maxWidth: 650,
-        mx: "auto",
-        mt: 5,
-        borderRadius: 3,
-        background: "#ffffff",
-        boxShadow: "0 6px 16px rgba(0, 0, 0, 0.08)",
-      }}
+      sx={{ p: 5, maxWidth: 650, mx: "auto", mt: 5, borderRadius: 3 }}
     >
       <Typography variant="h4" fontWeight="bold" color="primary" mb={2}>
         Novo Produto
@@ -185,6 +210,30 @@ export default function ProdutoForm({ onProdutoAdicionado }) {
             disabled={submitting}
             error={!!formErrors.preco}
             helperText={formErrors.preco}
+          />
+
+          <TextField
+            label="Quantidade Mínima"
+            type="number"
+            value={quantidadeMinima}
+            onChange={(e) => setQuantidadeMinima(e.target.value)}
+            fullWidth
+            inputProps={{ min: 0 }}
+            disabled={submitting}
+            error={!!formErrors.quantidadeMinima}
+            helperText={formErrors.quantidadeMinima}
+          />
+
+          <TextField
+            label="Quantidade Máxima"
+            type="number"
+            value={quantidadeMaxima}
+            onChange={(e) => setQuantidadeMaxima(e.target.value)}
+            fullWidth
+            inputProps={{ min: 1 }}
+            disabled={submitting}
+            error={!!formErrors.quantidadeMaxima}
+            helperText={formErrors.quantidadeMaxima}
           />
 
           <FormControl

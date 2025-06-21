@@ -89,44 +89,83 @@ app.post("/login", async (req, res) => {
 });
 
 // ===== Produtos =====
+
+// LISTAR PRODUTOS - rota GET corrigida
 app.get("/produtos", autenticarToken, async (req, res) => {
   const userId = req.usuario.id;
   try {
     const [rows] = await pool.query(
-      `SELECT p.id, p.nome, p.quantidade, p.preco,
+      `SELECT p.id, p.nome, p.quantidade, p.preco, p.quantidade_minima, p.quantidade_maxima,
               c.id AS categoria_id, c.nome AS categoria_nome,
               f.id AS fornecedor_id, f.nome AS fornecedor_nome
        FROM produto p
        LEFT JOIN categoria c ON p.categoria_id = c.id
        LEFT JOIN fornecedor f ON p.fornecedor_id = f.id
-       WHERE p.user_id = ?`,
+       WHERE p.user_id = ?
+       ORDER BY p.nome`,
       [userId]
     );
-    const produtos = rows.map((r) => ({
-      id: r.id,
-      nome: r.nome,
-      quantidade: r.quantidade,
-      preco: r.preco,
-      categoria: r.categoria_id
-        ? { id: r.categoria_id, nome: r.categoria_nome }
-        : null,
-      fornecedor: r.fornecedor_id
-        ? { id: r.fornecedor_id, nome: r.fornecedor_nome }
-        : null,
+
+    const produtos = rows.map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      quantidade: p.quantidade,
+      preco: Number(p.preco).toFixed(2),
+      quantidade_minima: p.quantidade_minima === 0 ? "-" : p.quantidade_minima,
+      quantidade_maxima:
+        p.quantidade_maxima === null || p.quantidade_maxima === 0
+          ? "-"
+          : p.quantidade_maxima,
+      categoria: p.categoria_nome ? p.categoria_nome : "-",
+      fornecedor: p.fornecedor_nome ? p.fornecedor_nome : "-",
+      idCategoria: p.categoria_id || "",
+      idFornecedor: p.fornecedor_id || "",
     }));
+
     res.json(produtos);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ROTA POST PRODUTOS (criar)
 app.post("/produtos", autenticarToken, async (req, res) => {
   const userId = req.usuario.id;
-  const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
+  let {
+    nome,
+    quantidade,
+    preco,
+    categoriaId,
+    fornecedorId,
+    quantidade_minima,
+    quantidade_maxima,
+  } = req.body;
+
+  quantidade = Number(quantidade);
+  preco = Number(preco);
+  quantidade_minima =
+    quantidade_minima !== undefined &&
+    quantidade_minima !== null &&
+    quantidade_minima !== ""
+      ? Number(quantidade_minima)
+      : 0;
+  quantidade_maxima =
+    quantidade_maxima !== undefined &&
+    quantidade_maxima !== null &&
+    quantidade_maxima !== ""
+      ? Number(quantidade_maxima)
+      : null;
+
+  if (!nome || isNaN(quantidade) || isNaN(preco)) {
+    return res
+      .status(400)
+      .json({ error: "Dados inválidos para nome, quantidade ou preço." });
+  }
+
   try {
     const [r] = await pool.execute(
-      `INSERT INTO produto (nome, quantidade, preco, categoria_id, fornecedor_id, user_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO produto (nome, quantidade, preco, categoria_id, fornecedor_id, user_id, quantidade_minima, quantidade_maxima)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nome,
         quantidade,
@@ -134,21 +173,62 @@ app.post("/produtos", autenticarToken, async (req, res) => {
         categoriaId || null,
         fornecedorId || null,
         userId,
+        quantidade_minima,
+        quantidade_maxima,
       ]
     );
-    res.status(201).json({ id: r.insertId, nome, quantidade, preco });
+    res.status(201).json({
+      id: r.insertId,
+      nome,
+      quantidade,
+      preco,
+      quantidade_minima,
+      quantidade_maxima,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ROTA PUT PRODUTOS (atualizar)
 app.put("/produtos/:id", autenticarToken, async (req, res) => {
   const userId = req.usuario.id;
   const { id } = req.params;
-  const { nome, quantidade, preco, categoriaId, fornecedorId } = req.body;
+  let {
+    nome,
+    quantidade,
+    preco,
+    categoriaId,
+    fornecedorId,
+    quantidade_minima,
+    quantidade_maxima,
+  } = req.body;
+
+  quantidade = Number(quantidade);
+  preco = Number(preco);
+  quantidade_minima =
+    quantidade_minima !== undefined &&
+    quantidade_minima !== null &&
+    quantidade_minima !== ""
+      ? Number(quantidade_minima)
+      : 0;
+  quantidade_maxima =
+    quantidade_maxima !== undefined &&
+    quantidade_maxima !== null &&
+    quantidade_maxima !== ""
+      ? Number(quantidade_maxima)
+      : null;
+
+  if (!nome || isNaN(quantidade) || isNaN(preco)) {
+    return res
+      .status(400)
+      .json({ error: "Dados inválidos para nome, quantidade ou preço." });
+  }
+
   try {
     const [r] = await pool.execute(
-      `UPDATE produto SET nome=?, quantidade=?, preco=?, categoria_id=?, fornecedor_id=?
+      `UPDATE produto
+       SET nome=?, quantidade=?, preco=?, categoria_id=?, fornecedor_id=?, quantidade_minima=?, quantidade_maxima=?
        WHERE id=? AND user_id=?`,
       [
         nome,
@@ -156,6 +236,8 @@ app.put("/produtos/:id", autenticarToken, async (req, res) => {
         preco,
         categoriaId || null,
         fornecedorId || null,
+        quantidade_minima,
+        quantidade_maxima,
         id,
         userId,
       ]
@@ -164,24 +246,7 @@ app.put("/produtos/:id", autenticarToken, async (req, res) => {
       return res
         .status(404)
         .json({ error: "Produto não encontrado ou sem permissão." });
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-app.delete("/produtos/:id", autenticarToken, async (req, res) => {
-  const userId = req.usuario.id;
-  const { id } = req.params;
-  try {
-    const [r] = await pool.execute(
-      "DELETE FROM produto WHERE id=? AND user_id=?",
-      [id, userId]
-    );
-    if (!r.affectedRows)
-      return res
-        .status(404)
-        .json({ error: "Produto não encontrado ou sem permissão." });
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: err.message });

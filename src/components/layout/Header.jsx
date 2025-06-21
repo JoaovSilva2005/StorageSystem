@@ -66,7 +66,7 @@ const Header = ({ onMenuClick }) => {
             },
           }}
         >
-          Logout
+          Sair
         </Button>
       </Toolbar>
     </AppBar>
