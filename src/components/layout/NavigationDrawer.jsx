@@ -1,5 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
+
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import List from "@mui/material/List";
@@ -16,8 +18,21 @@ import ArrowCircleUpIcon from "@mui/icons-material/ArrowCircleUp";
 import ArrowCircleDownIcon from "@mui/icons-material/ArrowCircleDown";
 import PeopleIcon from "@mui/icons-material/People";
 import CategoryIcon from "@mui/icons-material/Category";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts"; // Ícone para Gerenciar Usuários
 
 const NavigationDrawer = () => {
+  const token = localStorage.getItem("token");
+  let isAdmin = false;
+
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      isAdmin = decoded.role === "admin";
+    } catch (error) {
+      console.error("Erro ao decodificar token:", error);
+    }
+  }
+
   const getLinkStyle = (isActive, activeColor) => ({
     textDecoration: "none",
     color: isActive ? activeColor : "rgba(0,0,0,0.8)",
@@ -111,7 +126,7 @@ const NavigationDrawer = () => {
           variant="subtitle2"
           sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
         >
-          Logistica
+          Logística
         </Typography>
         <NavLink
           to="/entrada"
@@ -179,7 +194,7 @@ const NavigationDrawer = () => {
           variant="subtitle2"
           sx={{ px: 2, mb: 1, color: "rgba(0,0,0,0.54)", fontWeight: "600" }}
         >
-          Classificaçoes
+          Classificações
         </Typography>
         <NavLink
           to="/fornecedores"
@@ -216,7 +231,6 @@ const NavigationDrawer = () => {
           )}
         </NavLink>
 
-        {/* Nova seção para Dashboard e futuros itens */}
         <Divider sx={{ my: 2 }} />
         <Typography
           variant="subtitle2"
@@ -241,6 +255,27 @@ const NavigationDrawer = () => {
             </ListItemButton>
           )}
         </NavLink>
+
+        {/* ✅ Somente para administradores */}
+        {isAdmin && (
+          <NavLink
+            to="/usuarios"
+            end
+            style={({ isActive }) => getLinkStyle(isActive, "#f57c00")}
+          >
+            {({ isActive }) => (
+              <ListItemButton
+                sx={listItemSx(isActive, "#f57c00")}
+                selected={isActive}
+              >
+                <ListItemIcon>
+                  <ManageAccountsIcon sx={{ color: "#f57c00" }} />
+                </ListItemIcon>
+                <ListItemText primary="Gerenciar Usuários" />
+              </ListItemButton>
+            )}
+          </NavLink>
+        )}
       </List>
     </Box>
   );

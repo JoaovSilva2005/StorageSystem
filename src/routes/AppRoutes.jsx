@@ -12,6 +12,8 @@ import LoginPage from "../features/auth/LoginPage";
 import DashboardPage from "../features/dashboard/DashboardPage";
 import HomePage from "../features/home/HomePage";
 
+import GerenciarUsuarios from "../features/usuarios/GerenciarUsuarios"; // Importação do componente que você criou
+
 import MainLayout from "../components/layout/MainLayout";
 
 function PrivateRoute({ children }) {
@@ -49,6 +51,10 @@ export default function AppRoutes({ atualizar, refresh }) {
                 <Route path="movimentacoes" element={<MovimentacoesPage />} />
                 <Route path="saida" element={<SaidaPage />} />
                 <Route path="entrada" element={<EntradaPage />} />
+
+                {/* Rota para Gerenciar Usuários */}
+                <Route path="usuarios" element={<GerenciarUsuarios />} />
+
                 <Route path="*" element={<Navigate to="/dashboard" />} />
               </Routes>
             </MainLayout>

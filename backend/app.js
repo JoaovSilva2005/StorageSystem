@@ -1,3 +1,5 @@
+// ====== BACKEND: server.js ======
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2/promise");
@@ -10,30 +12,47 @@ app.use(express.json());
 
 // Configuração do pool MySQL
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "root",
-  database: "estoque_db",
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "root",
+  database: process.env.DB_NAME || "estoque_db",
 });
 
-// Middleware de autenticação
-const autenticarToken = (req, res, next) => {
+// Middleware: autenticarToken
+function autenticarToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token não fornecido." });
-  jwt.verify(token, "seusegredosecreto", (err, usuario) => {
-    if (err) return res.status(403).json({ error: "Token inválido." });
-    req.usuario = usuario; // { id, email }
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "seusegredosecreto",
+    (err, usuario) => {
+      if (err) return res.status(403).json({ error: "Token inválido." });
+      req.usuario = usuario; // { id, email, role }
+      next();
+    }
+  );
+}
+
+// Middleware: autenticarAdmin (token + role)
+const autenticarAdmin = [
+  autenticarToken,
+  (req, res, next) => {
+    if (req.usuario.role !== "admin") {
+      return res
+        .status(403)
+        .json({ error: "Acesso de administrador necessário." });
+    }
     next();
-  });
-};
+  },
+];
 
 // ===== Registro =====
 app.post("/register", async (req, res) => {
   const { nome, email, senha, cpf, telefone } = req.body;
-  if (!nome || !email || !senha || !cpf || !telefone)
+  if (!nome || !email || !senha || !cpf || !telefone) {
     return res.status(400).json({ error: "Todos os campos são obrigatórios." });
-
+  }
   const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
   const telRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,20 +64,124 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Telefone inválido." });
 
   try {
-    const [e] = await pool.query("SELECT 1 FROM usuarios WHERE email = ?", [
-      email,
-    ]);
-    if (e.length)
+    const [existsEmail] = await pool.query(
+      "SELECT 1 FROM usuarios WHERE email = ?",
+      [email]
+    );
+    if (existsEmail.length)
       return res.status(409).json({ error: "Email já cadastrado." });
-    const [c] = await pool.query("SELECT 1 FROM usuarios WHERE cpf = ?", [cpf]);
-    if (c.length) return res.status(409).json({ error: "CPF já cadastrado." });
+    const [existsCpf] = await pool.query(
+      "SELECT 1 FROM usuarios WHERE cpf = ?",
+      [cpf]
+    );
+    if (existsCpf.length)
+      return res.status(409).json({ error: "CPF já cadastrado." });
 
     const hash = await bcrypt.hash(senha, 10);
     await pool.execute(
-      "INSERT INTO usuarios (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)",
-      [nome, email, hash, cpf, telefone]
+      "INSERT INTO usuarios (nome, email, senha, cpf, telefone, role) VALUES (?, ?, ?, ?, ?, ?)",
+      [nome, email, hash, cpf, telefone, "user"]
     );
     res.status(201).json({ message: "Registro realizado com sucesso." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Login =====
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+  try {
+    const [rows] = await pool.query("SELECT * FROM usuarios WHERE email = ?", [
+      email,
+    ]);
+    if (!rows.length)
+      return res.status(401).json({ error: "Credenciais inválidas." });
+    const user = rows[0];
+    if (!(await bcrypt.compare(senha, user.senha))) {
+      return res.status(401).json({ error: "Credenciais inválidas." });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "seusegredosecreto",
+      { expiresIn: "1h" }
+    );
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Admin Usuários =====
+// Listar todos os usuários
+app.get("/admin/users", autenticarAdmin, async (req, res) => {
+  try {
+    const [users] = await pool.query(
+      "SELECT id, nome, email, cpf, telefone, role FROM usuarios ORDER BY nome"
+    );
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Atualizar todos os dados do usuário (admin)
+app.put("/admin/users/:id", autenticarAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { nome, email, cpf, telefone, role } = req.body;
+
+  // Validações básicas (pode melhorar conforme regras do seu sistema)
+  if (!nome || !email || !cpf || !telefone || !role) {
+    return res.status(400).json({ error: "Todos os campos são obrigatórios." });
+  }
+
+  const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+  const telRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email))
+    return res.status(400).json({ error: "Email inválido." });
+  if (!cpfRegex.test(cpf))
+    return res.status(400).json({ error: "CPF inválido." });
+  if (!telRegex.test(telefone))
+    return res.status(400).json({ error: "Telefone inválido." });
+  if (!["user", "admin"].includes(role))
+    return res.status(400).json({ error: "Role inválida." });
+
+  try {
+    // Atualiza o usuário
+    const [result] = await pool.execute(
+      "UPDATE usuarios SET nome = ?, email = ?, cpf = ?, telefone = ?, role = ? WHERE id = ?",
+      [nome, email, cpf, telefone, role, id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    res.json({ message: "Usuário atualizado com sucesso." });
+  } catch (err) {
+    // Pode verificar erro de chave única aqui (email ou cpf duplicado)
+    if (err.code === "ER_DUP_ENTRY") {
+      return res
+        .status(409)
+        .json({ error: "Email ou CPF já cadastrado em outro usuário." });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Excluir usuário
+app.delete("/admin/users/:id", autenticarAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.execute("DELETE FROM usuarios WHERE id = ?", [
+      id,
+    ]);
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+    res.json({ message: "Usuário excluído com sucesso." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

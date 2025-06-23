@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
-import { useNavigate } from "react-router-dom"; // <-- Import do useNavigate
+import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
 const API_URL = "http://localhost:3001";
 
 function LoginRegister() {
-  const navigate = useNavigate(); // <-- Inicializa o hook de navegação
+  const navigate = useNavigate();
   const [isActive, setIsActive] = useState(false);
 
   const [mostrarSenhaLogin, setMostrarSenhaLogin] = useState(false);
@@ -99,8 +100,17 @@ function LoginRegister() {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem("token", data.token);
-        alert("Login realizado com sucesso!");
-        navigate("/dashboard"); // <-- Redirecionamento após login
+
+        const decoded = jwtDecode(data.token);
+
+        // ✅ Verifica se é admin
+        if (decoded.role === "admin") {
+          alert("Login realizado com sucesso! Você está logado como ADMIN.");
+        } else {
+          alert("Login realizado com sucesso!");
+        }
+
+        navigate("/dashboard");
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Credenciais inválidas.");
