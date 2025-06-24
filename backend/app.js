@@ -376,6 +376,21 @@ app.put("/produtos/:id", autenticarToken, async (req, res) => {
   }
 });
 
+app.get("/produtos/alertas", autenticarToken, async (req, res) => {
+  const userId = req.usuario.id;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nome, quantidade, quantidade_minima
+       FROM produto
+       WHERE user_id = ? AND quantidade <= quantidade_minima AND quantidade_minima > 0`,
+      [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ===== Movimentações =====
 async function registraMovimento(
   produtoId,

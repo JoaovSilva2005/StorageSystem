@@ -17,7 +17,7 @@ const EntradaForm = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
+  const fetchProdutos = () => {
     fetch("http://localhost:3001/produtos", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -34,6 +34,10 @@ const EntradaForm = () => {
       })
       .then((data) => setProdutos(data))
       .catch(() => setError("Erro ao carregar produtos."));
+  };
+
+  useEffect(() => {
+    fetchProdutos();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -43,6 +47,31 @@ const EntradaForm = () => {
 
     if (!produtoId || !quantidade || quantidade <= 0) {
       setError("Selecione um produto e informe uma quantidade válida.");
+      return;
+    }
+
+    const produtoSelecionado = produtos.find((p) => p.id === produtoId);
+
+    if (!produtoSelecionado) {
+      setError("Produto selecionado inválido.");
+      return;
+    }
+
+    const quantidadeAtual = Number(produtoSelecionado.quantidade);
+    const quantidadeInformada = Number(quantidade);
+    const quantidadeMaxima =
+      produtoSelecionado.quantidade_maxima === "-"
+        ? null
+        : Number(produtoSelecionado.quantidade_maxima);
+
+    if (
+      quantidadeMaxima &&
+      quantidadeMaxima > 0 &&
+      quantidadeAtual + quantidadeInformada > quantidadeMaxima
+    ) {
+      setError(
+        `A entrada excede o estoque máximo permitido (${quantidadeMaxima} unidades).`
+      );
       return;
     }
 
@@ -56,7 +85,7 @@ const EntradaForm = () => {
             Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
           },
           body: JSON.stringify({
-            quantidade: Number(quantidade),
+            quantidade: quantidadeInformada,
             observacao,
           }),
         }
@@ -75,6 +104,7 @@ const EntradaForm = () => {
       setProdutoId("");
       setQuantidade("");
       setObservacao("");
+      fetchProdutos(); // Atualiza produtos
     } catch (err) {
       setError(err.message || "Falha ao registrar entrada.");
     }
@@ -118,7 +148,7 @@ const EntradaForm = () => {
         >
           {produtos.map((p) => (
             <MenuItem key={p.id} value={p.id}>
-              {p.nome}
+              {`${p.nome} (atual: ${p.quantidade}, máx: ${p.quantidade_maxima})`}
             </MenuItem>
           ))}
         </TextField>

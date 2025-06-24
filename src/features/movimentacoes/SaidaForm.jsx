@@ -24,7 +24,7 @@ const SaidaForm = () => {
     window.location.href = "/login";
   };
 
-  useEffect(() => {
+  const fetchProdutos = () => {
     fetch("http://localhost:3001/produtos", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -40,6 +40,10 @@ const SaidaForm = () => {
       })
       .then(setProdutos)
       .catch(() => setError("Erro ao carregar produtos."));
+  };
+
+  useEffect(() => {
+    fetchProdutos();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -48,9 +52,21 @@ const SaidaForm = () => {
     setSuccess("");
 
     const qtd = Number(quantidade);
-
     if (!produtoId || qtd <= 0 || isNaN(qtd) || !Number.isInteger(qtd)) {
       setError("Preencha corretamente o produto e a quantidade.");
+      return;
+    }
+
+    const produtoSelecionado = produtos.find((p) => p.id === produtoId);
+    if (!produtoSelecionado) {
+      setError("Produto selecionado inválido.");
+      return;
+    }
+
+    if (qtd > produtoSelecionado.quantidade) {
+      setError(
+        `Estoque insuficiente! Disponível: ${produtoSelecionado.quantidade}`
+      );
       return;
     }
 
@@ -80,6 +96,7 @@ const SaidaForm = () => {
       setProdutoId("");
       setQuantidade("");
       setObservacao("");
+      fetchProdutos(); // Atualiza a lista após saída
     } catch (err) {
       setError(err.message || "Falha ao registrar saída.");
     } finally {
@@ -126,7 +143,7 @@ const SaidaForm = () => {
         >
           {produtos.map((p) => (
             <MenuItem key={p.id} value={p.id}>
-              {p.nome}
+              {`${p.nome} (em estoque: ${p.quantidade})`}
             </MenuItem>
           ))}
         </TextField>
