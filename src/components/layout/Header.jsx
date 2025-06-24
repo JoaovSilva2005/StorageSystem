@@ -68,6 +68,7 @@ const Header = ({ onMenuClick }) => {
         <Typography
           variant="h6"
           component="div"
+          onClick={() => navigate("/")}
           sx={{
             flexGrow: 1,
             fontWeight: "bold",
@@ -75,6 +76,8 @@ const Header = ({ onMenuClick }) => {
             display: "flex",
             alignItems: "center",
             gap: 1,
+            cursor: "pointer",
+            userSelect: "none", // <- impede que o texto fique selecionado
           }}
         >
           <Inventory2OutlinedIcon sx={{ fontSize: 26 }} />
